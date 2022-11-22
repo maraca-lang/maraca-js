@@ -1,9 +1,19 @@
 import compile from "./compile.js";
 import parse from "./parse.js";
+import run from "./streams.js";
 
-const run = (source, library = {}) => {
-  const result = compile(parse(source, library));
-  return JSON.stringify(result, null, 2);
+export { atom, derived, effect, resolve } from "./streams.js";
+export { createMap } from "./utils.js";
+
+const combine = (source) => {
+  if (typeof source === "string") return source;
+  return `[ ${Object.entries(source)
+    .map(([k, v]) => `'${k}': ${combine(v)}`)
+    .join(", ")} ]`;
 };
 
-console.log(run(`[*x: x * 2].10`));
+export default (library, source, update) => {
+  const compiled = compile(parse(combine(source), library), library);
+  if (update) return run(() => update(compiled));
+  return run(() => resolve(compiled, true), true);
+};

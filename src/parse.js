@@ -13,7 +13,11 @@ const grammar = String.raw`Maraca {
     | and
 
   and
-    = and space* "&" space* compare -- and
+    = and space* "&" space* equal -- and
+    | equal
+
+  equal
+    = equal space* ("!" | "=") space* compare -- equal
     | compare
 
   compare
@@ -56,7 +60,7 @@ const grammar = String.raw`Maraca {
     = space* "," space*
 
   assign
-    = value space* ":" space* value
+    = value? space* ":" space* value?
 
   string
     = "'" (char | escape)* "'"
@@ -113,6 +117,9 @@ s.addAttribute("ast", {
   and_and: binary,
   and: (a) => a.ast,
 
+  equal_equal: binary,
+  equal: (a) => a.ast,
+
   compare_compare: binary,
   compare: (a) => a.ast,
 
@@ -145,7 +152,13 @@ s.addAttribute("ast", {
 
   join: (_1, _2, _3) => null,
 
-  assign: (a, _1, _2, _3, b) => ({ type: "assign", nodes: [a.ast, b.ast] }),
+  assign: (a, _1, _2, _3, b) => ({
+    type: "assign",
+    nodes: [
+      a.ast[0] || { type: "keyword", name: "any" },
+      b.ast[0] || { type: "keyword", name: "any" },
+    ],
+  }),
 
   string: (_1, a, _2) => ({ type: "value", value: a.sourceString }),
 
@@ -228,11 +241,8 @@ const processNode = (node, processVar) => {
       if (!(name in processed)) {
         if (name in values) {
           processed[name] = true;
-          processNode(values[name], newProcessVar);
-          ordered.push({
-            key: values[name].nodes[0].value,
-            value: values[name].nodes[1],
-          });
+          const [key, value] = processNode(values[name], newProcessVar).nodes;
+          ordered.push({ key: key.value, value });
         }
       }
     };

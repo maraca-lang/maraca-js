@@ -1,6 +1,19 @@
 import { ANY, NONE, GROUPS } from "./utils.js";
 import { applyMap, join, meet } from "./lattice.js";
+import { derived, resolve } from "./streams.js";
 
+const operators = {
+  "|": (a, b) => {
+    const result = join(a, b);
+    return result === null ? { type: "join", value: [a, b] } : result;
+  },
+  "&": (a, b) => {
+    const result = meet(a, b);
+    return result === null ? { type: "meet", value: [a, b] } : result;
+  },
+  "=": (a, b) => (a === b ? ANY : NONE),
+  "!": (a, b) => (a !== b ? ANY : NONE),
+};
 const numericOperators = {
   "<=": (a, b) => (a <= b ? ANY : NONE),
   ">=": (a, b) => (a >= b ? ANY : NONE),
@@ -12,16 +25,6 @@ const numericOperators = {
   "/": (a, b) => a / b,
   "%": (a, b) => ((((a - 1) % b) + b) % b) + 1,
   "^": (a, b) => a ** b,
-};
-const operators = {
-  "|": (a, b) => {
-    const result = join(a, b);
-    return result === null ? { type: "join", value: [a, b] } : result;
-  },
-  "&": (a, b) => {
-    const result = meet(a, b);
-    return result === null ? { type: "meet", value: [a, b] } : result;
-  },
 };
 
 const compile = (node, context) => {
@@ -49,13 +52,16 @@ const compile = (node, context) => {
 
   if (node.type === "map") {
     if (node.block) {
-      return compile({
-        type: "apply",
-        nodes: [
-          { ...node, block: false },
-          { type: "value", value: ANY },
-        ],
-      });
+      return compile(
+        {
+          type: "apply",
+          nodes: [
+            { ...node, block: false },
+            { type: "value", value: ANY },
+          ],
+        },
+        context
+      );
     }
 
     const newContext = { ...context };
@@ -89,18 +95,23 @@ const compile = (node, context) => {
   const compiled = node.nodes.map((n) => compile(n, context));
 
   if (node.type === "apply") {
-    const [map, input] = compiled;
-    return applyMap(map, input);
+    return derived(() => {
+      const [map, input] = compiled;
+      return applyMap(map, input);
+    });
   }
 
   if (node.type === "operation") {
-    if (operators[node.operation]) {
-      return operators[node.operation](...compiled);
-    }
-    if (compiled.every((a) => typeof a === "number")) {
-      return numericOperators[node.operation](...compiled);
-    }
-    return NONE;
+    return derived(() => {
+      const resolved = compiled.map((x) => resolve(x));
+      if (operators[node.operation]) {
+        return operators[node.operation](...resolved);
+      }
+      if (resolved.every((a) => typeof a === "number")) {
+        return numericOperators[node.operation](...resolved);
+      }
+      return NONE;
+    });
   }
 };
 

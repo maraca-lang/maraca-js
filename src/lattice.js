@@ -4,9 +4,13 @@ import {
   meetRanges,
   rangeIncludes,
 } from "./range.js";
+import { resolve } from "./streams.js";
 import { ANY, NONE, GROUPS } from "./utils.js";
 
-export const applyMap = (map, input) => {
+export const applyMap = ($map, $input) => {
+  const map = resolve($map);
+  const input = resolve($input);
+
   if (Number.isInteger(input) && input >= 1 && input <= map.items.length) {
     return map.items[input - 1];
   }
@@ -17,7 +21,9 @@ export const applyMap = (map, input) => {
 
   if (map.pairs.length > 0) {
     const pairResults = map.pairs.map((pairs) => {
-      for (const { key, value, parameters } of pairs) {
+      for (const { key: $key, value: $value, parameters } of pairs) {
+        const key = resolve($key);
+        const value = resolve($value);
         if (!parameters) {
           if (meet(key, input) === input) return value;
         } else {
