@@ -3,6 +3,8 @@ import { atom, derived, effect } from "./streams.js";
 import { ANY, NONE, GROUPS } from "./utils.js";
 
 const operators = {
+  "|": (...args) => simplify("join", args),
+  "&": (...args) => simplify("meet", args),
   "=": (a, b) => (a === b ? ANY : NONE),
   "!": (a, b) => (a !== b ? ANY : NONE),
 };
@@ -18,9 +20,19 @@ const numericOperators = {
   "%": (a, b) => ((((a - 1) % b) + b) % b) + 1,
   "^": (a, b) => a ** b,
 };
+const doOperator = (operation, values) => {
+  if (operators[operation]) {
+    return operators[operation](...values);
+  }
+  if (values.every((a) => typeof a === "number")) {
+    return numericOperators[operation](...values);
+  }
+  return NONE;
+};
 
 const makeAtom = (value) => {
   if (
+    value === NONE ||
     typeof value === "number" ||
     typeof value === "string" ||
     value?.isStream ||
@@ -120,19 +132,19 @@ const compile = (node, context) => {
   }
 
   if (node.type === "operation") {
-    if (node.operation === "|" || node.operation === "&") {
-      return simplify(node.operation === "|" ? "join" : "meet", compiled);
+    if (
+      compiled.every(
+        (x) => !x?.isStream && x?.type !== "map" && x?.type !== "atom"
+      )
+    ) {
+      return doOperator(node.operation, compiled);
     }
-    return derived(() => {
-      const resolved = compiled.map((x) => resolve(x));
-      if (operators[node.operation]) {
-        return operators[node.operation](...resolved);
-      }
-      if (resolved.every((a) => typeof a === "number")) {
-        return numericOperators[node.operation](...resolved);
-      }
-      return NONE;
-    });
+    return derived(() =>
+      doOperator(
+        node.operation,
+        compiled.map((x) => resolve(x))
+      )
+    );
   }
 };
 
