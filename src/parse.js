@@ -67,7 +67,7 @@ const grammar = String.raw`Maraca {
     = value? space* ":" space* (push | value)?
 
   push
-    = value space* "->" space* value
+    = (value space* "?" space*)? value space* "->" space* value
 
   string
     = "'" (char | escape)* "'"
@@ -196,9 +196,9 @@ s.addAttribute("ast", {
     ],
   }),
 
-  push: (a, _1, _2, _3, b) => ({
+  push: (a, _1, _2, _3, b, _4, _5, _6, c) => ({
     type: "push",
-    nodes: [a.ast, b.ast],
+    nodes: [b.ast, c.ast, a.ast[0]].filter((x) => x),
   }),
 
   string: (_1, a, _2) => ({ type: "value", value: a.sourceString }),
@@ -306,9 +306,10 @@ const processNode = (node, processVar) => {
         }),
       pushes: nodes
         .filter((n) => n.type === "push")
-        .map(({ nodes: [source, target], first }) => ({
+        .map(({ nodes: [source, target, trigger], first }) => ({
           source,
           target,
+          trigger,
           first,
         })),
     };

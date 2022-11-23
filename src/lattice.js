@@ -63,14 +63,23 @@ export const simplify = (operation, values) => {
   };
 };
 
-export const resolve = (x) => {
-  if (typeof x === "object" && x !== null) {
-    if (x.isStream) return resolve(x.get());
+export const resolve = (x, deep = false) => {
+  if (!x) return x;
+  if (Array.isArray(x)) {
+    if (!deep) return x;
+    return x.map((y) => resolve(y, true));
+  }
+  if (typeof x === "object") {
+    if (x.isStream) return resolve(x.get(), deep);
     if (x.type === "atom") {
-      const value = [x.value, resolve(x.atom)];
+      const value = [x.value, resolve(x.atom, deep)];
       const result = meet(...value);
       return result === null ? { type: "meet", value } : result;
     }
+    if (!deep) return x;
+    return Object.fromEntries(
+      Object.entries(x).map(([k, y]) => [k, resolve(y, true)])
+    );
   }
   return x;
 };

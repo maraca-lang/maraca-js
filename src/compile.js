@@ -107,15 +107,28 @@ const compile = (node, context) => {
 
     return derived(() => {
       for (const push of node.pushes) {
-        const source = compile(push.source, newContext);
         const target = compile(push.target, newContext);
         if (target.type === "atom") {
           let skipFirst = !push.first;
-          effect(() => {
-            const res = resolve(source);
-            if (!skipFirst) target.atom.set(res);
-            skipFirst = false;
-          });
+          const source = compile(push.source, newContext);
+          if (push.trigger) {
+            const trigger = compile(push.trigger, newContext);
+            let prevTrigger = {};
+            effect(() => {
+              const nextTrigger = trigger && resolve(trigger);
+              if (nextTrigger !== prevTrigger) {
+                prevTrigger = nextTrigger;
+                if (!skipFirst) target.atom.set(resolve(source, true));
+                skipFirst = false;
+              }
+            });
+          } else {
+            effect(() => {
+              const res = resolve(source, true);
+              if (!skipFirst) target.atom.set(res);
+              skipFirst = false;
+            });
+          }
         }
       }
       return { type: "map", values, items, pairs };
@@ -124,11 +137,17 @@ const compile = (node, context) => {
 
   const compiled = node.nodes.map((n) => compile(n, context));
 
-  if (node.type === "apply") {
+  if (node.type === "trigger") {
+    const [$trigger, $output] = compiled;
     return derived(() => {
-      const [map, input] = compiled;
-      return applyMap(map, input);
+      resolve($trigger);
+      return $output;
     });
+  }
+
+  if (node.type === "apply") {
+    const [$map, $input] = compiled;
+    return derived(() => applyMap($map, $input));
   }
 
   if (node.type === "operation") {
