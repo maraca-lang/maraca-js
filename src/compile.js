@@ -1,16 +1,8 @@
-import { applyMap, join, meet, resolve } from "./lattice.js";
+import { applyMap, resolve, simplify } from "./lattice.js";
 import { atom, derived, effect } from "./streams.js";
 import { ANY, NONE, GROUPS } from "./utils.js";
 
 const operators = {
-  "|": (a, b) => {
-    const result = join(a, b);
-    return result === null ? { type: "join", value: [a, b] } : result;
-  },
-  "&": (a, b) => {
-    const result = meet(a, b);
-    return result === null ? { type: "meet", value: [a, b] } : result;
-  },
   "=": (a, b) => (a === b ? ANY : NONE),
   "!": (a, b) => (a !== b ? ANY : NONE),
 };
@@ -27,26 +19,31 @@ const numericOperators = {
   "^": (a, b) => a ** b,
 };
 
+const makeAtom = (value) => {
+  if (
+    typeof value === "number" ||
+    typeof value === "string" ||
+    value?.isStream ||
+    value?.type === "atom"
+  ) {
+    return value;
+  }
+  return { type: "atom", value, atom: atom() };
+};
+
 const compile = (node, context) => {
   if (node.type === "value") {
-    if (typeof node.value === "number" || typeof node.value === "string") {
-      return node.value;
-    }
-    return { type: "atom", value: node.value, atom: atom() };
+    return node.value;
   }
 
   if (node.type === "keyword") {
     return {
-      type: "atom",
-      value: {
-        any: ANY,
-        none: NONE,
-        string: GROUPS.STRING,
-        number: GROUPS.NUMBER,
-        integer: GROUPS.INTEGER,
-      }[node.name],
-      atom: atom(),
-    };
+      any: ANY,
+      none: NONE,
+      string: GROUPS.STRING,
+      number: GROUPS.NUMBER,
+      integer: GROUPS.INTEGER,
+    }[node.name];
   }
 
   if (node.type === "variable") {
@@ -76,7 +73,7 @@ const compile = (node, context) => {
       const values = {};
 
       for (const { key, value } of node.values) {
-        const result = compile(value, newContext);
+        const result = makeAtom(compile(value, newContext));
         newContext[key] = result;
         values[key] = result;
       }
@@ -85,8 +82,11 @@ const compile = (node, context) => {
         const source = compile(push.source, newContext);
         const target = compile(push.target, newContext);
         if (target.type === "atom") {
+          let skipFirst = !push.first;
           effect(() => {
-            target.atom.set(resolve(source));
+            const res = resolve(source);
+            if (!skipFirst) target.atom.set(res);
+            skipFirst = false;
           });
         }
       }
@@ -121,6 +121,9 @@ const compile = (node, context) => {
   }
 
   if (node.type === "operation") {
+    if (node.operation === "|" || node.operation === "&") {
+      return simplify(node.operation === "|" ? "join" : "meet", compiled);
+    }
     return derived(() => {
       const resolved = compiled.map((x) => resolve(x));
       if (operators[node.operation]) {

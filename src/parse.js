@@ -6,15 +6,19 @@ const grammar = String.raw`Maraca {
     = space* value? space*
 
   value
-    = or
+    = join
 
-  or
-    = or space* "|" space* and -- or
-    | and
+  join
+    = nonemptyListOf<meet, joininner>
 
-  and
-    = and space* "&" space* equal -- and
-    | equal
+  joininner
+    = space* "|" space*
+
+  meet
+    = nonemptyListOf<equal, meetinner>
+
+  meetinner
+    = space* "&" space*
 
   equal
     = equal space* ("!" | "=") space* compare -- equal
@@ -54,9 +58,9 @@ const grammar = String.raw`Maraca {
     = "{" space* items space* "}"
 
   items
-    = listOf<(assign | push | value), join> space* ","?
+    = listOf<(assign | push | value), itemsinner> space* ","?
 
-  join
+  itemsinner
     = space* "," space*
 
   assign
@@ -107,6 +111,7 @@ const getMapNotes = (ast) =>
             { type: "assign", nodes: [n.nodes[0], n.nodes[1].nodes[1]] },
             {
               type: "push",
+              first: true,
               nodes: [
                 n.nodes[1].nodes[0],
                 { type: "variable", name: n.nodes[0].value },
@@ -122,11 +127,27 @@ s.addAttribute("ast", {
 
   value: (a) => a.ast,
 
-  or_or: binary,
-  or: (a) => a.ast,
+  join: (a) =>
+    a.ast.length === 1
+      ? a.ast[0]
+      : {
+          type: "operation",
+          operation: "|",
+          nodes: a.ast,
+        },
 
-  and_and: binary,
-  and: (a) => a.ast,
+  joininner: (_1, _2, _3) => null,
+
+  meet: (a) =>
+    a.ast.length === 1
+      ? a.ast[0]
+      : {
+          type: "operation",
+          operation: "&",
+          nodes: a.ast,
+        },
+
+  meetinner: (_1, _2, _3) => null,
 
   equal_equal: binary,
   equal: (a) => a.ast,
@@ -165,7 +186,7 @@ s.addAttribute("ast", {
 
   items: (a, _1, _2) => a.ast,
 
-  join: (_1, _2, _3) => null,
+  itemsinner: (_1, _2, _3) => null,
 
   assign: (a, _1, _2, _3, b) => ({
     type: "assign",
@@ -213,43 +234,43 @@ const getParameters = (node) => {
   return [];
 };
 
-const captureNode = (node, checkVar, stopAtMap) => {
-  if (node.type === "map" && !node.block && stopAtMap) {
-  } else if (node.type === "map") {
-    const checked = {};
+const captureNode = (node, context, capture) => {
+  if (node.type === "map") {
     const varKeys = node.nodes
       .filter((n) => n.type === "assign" && n.nodes[0].type === "value")
       .map((n) => n.nodes[0].value);
-    const newCheckVar = (name) => {
-      if (!(name in checked)) {
-        if (varKeys.includes(name) || checkVar(name)) {
-          checked[name] = true;
-        } else if (!node.block) {
-          checked[name] = true;
-          node.nodes.push({
-            type: "assign",
-            nodes: [
-              { type: "value", value: name },
-              { type: "keyword", name: "any" },
-            ],
-          });
-        } else {
-          checked[name] = false;
-        }
-      }
-      return checked[name];
-    };
-    for (const n of node.nodes) captureNode(n, newCheckVar, true);
-    for (const n of node.nodes) captureNode(n, newCheckVar);
+    const newContext = varKeys.reduce(
+      (res, k) => ({ ...res, [k]: true }),
+      context
+    );
+    if (node.block) {
+      for (const n of node.nodes) captureNode(n, newContext, capture);
+    } else if (!capture) {
+      const newCapture = (name) => {
+        newContext[name] = true;
+        node.nodes.push({
+          type: "assign",
+          nodes: [
+            { type: "value", value: name },
+            { type: "keyword", name: "any" },
+          ],
+        });
+      };
+      for (const n of node.nodes) captureNode(n, newContext, newCapture);
+      for (const n of node.nodes) captureNode(n, newContext);
+    }
   } else if (node.type === "assign") {
     const parameters = getParameters(node.nodes[0]);
-    const newCheckVar = (name) => parameters.includes(name) || checkVar(name);
-    captureNode(node.nodes[0], checkVar, stopAtMap);
-    captureNode(node.nodes[1], newCheckVar, stopAtMap);
+    const newContext = parameters.reduce(
+      (res, k) => ({ ...res, [k]: true }),
+      context
+    );
+    captureNode(node.nodes[0], context, capture);
+    captureNode(node.nodes[1], newContext, capture);
   } else if (node.nodes) {
-    for (const n of node.nodes) captureNode(n, checkVar, stopAtMap);
+    for (const n of node.nodes) captureNode(n, context, capture);
   } else if (node.type === "variable") {
-    checkVar(node.name);
+    if (!(node.name in context)) capture(node.name);
   }
 };
 
@@ -285,7 +306,11 @@ const processNode = (node, processVar) => {
         }),
       pushes: nodes
         .filter((n) => n.type === "push")
-        .map(({ nodes: [source, target] }) => ({ source, target })),
+        .map(({ nodes: [source, target], first }) => ({
+          source,
+          target,
+          first,
+        })),
     };
   } else if (node.nodes) {
     return {
@@ -306,7 +331,7 @@ export default (script, library) => {
     throw new Error("Parser error");
   }
   const result = s(m).ast;
-  captureNode(result, (name) => name in library);
+  captureNode(result, library);
   const final = processNode(result, () => {});
   // console.log(JSON.stringify(final, null, 2));
   return final;
