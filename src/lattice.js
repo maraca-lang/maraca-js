@@ -4,11 +4,25 @@ import {
   meetRanges,
   rangeIncludes,
 } from "./range.js";
-import { resolve } from "./streams.js";
-import { ANY, NONE, GROUPS } from "./utils.js";
+import { ANY, NONE, GROUPS, createMap } from "./utils.js";
+
+export const resolve = (x) => {
+  if (typeof x === "object" && x !== null) {
+    if (x.isStream) return resolve(x.get());
+    if (x.type === "atom") {
+      const value = [x.value, resolve(x.atom)];
+      const result = meet(...value);
+      return result === null ? { type: "meet", value } : result;
+    }
+  }
+  return x;
+};
 
 export const applyMap = ($map, $input) => {
-  const map = resolve($map);
+  const mapValue = resolve($map);
+  if (mapValue === ANY) return ANY;
+
+  const map = createMap(mapValue);
   const input = resolve($input);
 
   if (Number.isInteger(input) && input >= 1 && input <= map.items.length) {
@@ -209,11 +223,32 @@ export const meet = (a, b, context = {}) => {
 
   if (a.type === "map") {
     const keys = Object.keys({ ...a.values, ...b.values });
+    const values = keys.map((k) =>
+      meet(applyMap(a, k), applyMap(b, k), context)
+    );
+    if (
+      b.items.length === 0 &&
+      b.pairs.length === 0 &&
+      arrayShallowEqual(
+        values,
+        keys.map((k) => a.values[k])
+      )
+    ) {
+      return a;
+    }
+    if (
+      a.items.length === 0 &&
+      a.pairs.length === 0 &&
+      arrayShallowEqual(
+        values,
+        keys.map((k) => b.values[k])
+      )
+    ) {
+      return b;
+    }
     return {
       type: "map",
-      values: Object.fromEntries(
-        keys.map((k) => [k, meet(applyMap(a, k), applyMap(b, k))])
-      ),
+      values: Object.fromEntries(keys.map((k, i) => [k, values[i]])),
       items: [...a.items, ...b.items],
       pairs: [...a.pairs, ...b.pairs],
     };

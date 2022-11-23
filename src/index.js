@@ -2,7 +2,8 @@ import compile from "./compile.js";
 import parse from "./parse.js";
 import run from "./streams.js";
 
-export { atom, derived, effect, resolve } from "./streams.js";
+export { resolve } from "./lattice.js";
+export { atom, derived, effect } from "./streams.js";
 export { createMap } from "./utils.js";
 
 const combine = (source) => {

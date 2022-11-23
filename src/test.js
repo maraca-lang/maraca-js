@@ -1,4 +1,4 @@
-import run, { atom, resolve } from "./index.js";
+import run, { atom } from "./index.js";
 
 const print = (x, space) =>
   JSON.stringify(
@@ -18,6 +18,18 @@ setInterval(() => {
   tick.update((x) => x + 1);
 }, 1000);
 
-run({ tick }, `[*x: x * 5].tick`, (data) => {
-  console.log(print(resolve(data, true)));
+export const resolveDeep = (x) => {
+  if (!x) return x;
+  if (Array.isArray(x)) return x.map((y) => resolveDeep(y));
+  if (typeof x === "object") {
+    if (x.isStream) return resolveDeep(x.get());
+    return Object.fromEntries(
+      Object.entries(x).map(([k, y]) => [k, resolveDeep(y)])
+    );
+  }
+  return x;
+};
+
+run({ tick }, `{ : 'hello' }`, (data) => {
+  console.log(print(resolveDeep(data)));
 });

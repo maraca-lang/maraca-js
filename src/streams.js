@@ -153,11 +153,6 @@ export const atom = (initial) => new SourceStream(initial);
 export const derived = (run, debug = "") => new Stream(run, false, debug);
 export const effect = (run, debug = "") => new Stream(run, true, debug).get();
 
-export const resolve = (x) => {
-  if (typeof x === "object" && x.isStream) return resolve(x.get());
-  return x;
-};
-
 export default (run, once = false) => {
   const s = new Stream(run, true, "run");
   queue.add(s);

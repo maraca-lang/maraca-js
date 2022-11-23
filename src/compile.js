@@ -1,6 +1,6 @@
+import { applyMap, join, meet, resolve } from "./lattice.js";
+import { atom, derived, effect } from "./streams.js";
 import { ANY, NONE, GROUPS } from "./utils.js";
-import { applyMap, join, meet } from "./lattice.js";
-import { derived, resolve } from "./streams.js";
 
 const operators = {
   "|": (a, b) => {
@@ -29,21 +29,28 @@ const numericOperators = {
 
 const compile = (node, context) => {
   if (node.type === "value") {
-    return node.value;
-  }
-
-  if (node.type === "variable") {
-    return context[node.name];
+    if (typeof node.value === "number" || typeof node.value === "string") {
+      return node.value;
+    }
+    return { type: "atom", value: node.value, atom: atom() };
   }
 
   if (node.type === "keyword") {
     return {
-      any: ANY,
-      none: NONE,
-      string: GROUPS.STRING,
-      number: GROUPS.NUMBER,
-      integer: GROUPS.INTEGER,
-    }[node.name];
+      type: "atom",
+      value: {
+        any: ANY,
+        none: NONE,
+        string: GROUPS.STRING,
+        number: GROUPS.NUMBER,
+        integer: GROUPS.INTEGER,
+      }[node.name],
+      atom: atom(),
+    };
+  }
+
+  if (node.type === "variable") {
+    return context[node.name];
   }
 
   if (node.type === "parameter") {
@@ -64,32 +71,44 @@ const compile = (node, context) => {
       );
     }
 
-    const newContext = { ...context };
-    const values = {};
+    return derived(() => {
+      const newContext = { ...context };
+      const values = {};
 
-    for (const { key, value } of node.values) {
-      const result = compile(value, newContext);
-      newContext[key] = result;
-      values[key] = result;
-    }
+      for (const { key, value } of node.values) {
+        const result = compile(value, newContext);
+        newContext[key] = result;
+        values[key] = result;
+      }
 
-    return {
-      type: "map",
-      values,
-      items: node.items.map((n) => compile(n, newContext)),
-      pairs:
-        node.pairs.length === 0
-          ? []
-          : [
-              node.pairs.map(({ key, value, parameters }) => ({
-                key: compile(key, newContext),
-                value: parameters
-                  ? (args) => compile(value, { ...newContext, ...args })
-                  : compile(value, newContext),
-                parameters,
-              })),
-            ],
-    };
+      for (const push of node.pushes) {
+        const source = compile(push.source, newContext);
+        const target = compile(push.target, newContext);
+        if (target.type === "atom") {
+          effect(() => {
+            target.atom.set(resolve(source));
+          });
+        }
+      }
+
+      return {
+        type: "map",
+        values,
+        items: node.items.map((n) => compile(n, newContext)),
+        pairs:
+          node.pairs.length === 0
+            ? []
+            : [
+                node.pairs.map(({ key, value, parameters }) => ({
+                  key: compile(key, newContext),
+                  value: parameters
+                    ? (args) => compile(value, { ...newContext, ...args })
+                    : compile(value, newContext),
+                  parameters,
+                })),
+              ],
+      };
+    });
   }
 
   const compiled = node.nodes.map((n) => compile(n, context));

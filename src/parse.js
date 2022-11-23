@@ -54,13 +54,16 @@ const grammar = String.raw`Maraca {
     = "{" space* items space* "}"
 
   items
-    = listOf<(assign | value), join> space* ","?
+    = listOf<(assign | push | value), join> space* ","?
 
   join
     = space* "," space*
 
   assign
-    = value? space* ":" space* value?
+    = value? space* ":" space* (push | value)?
+
+  push
+    = value space* "->" space* value
 
   string
     = "'" (char | escape)* "'"
@@ -96,15 +99,23 @@ const binary = (a, _1, b, _2, c) => ({
   nodes: [a.ast, c.ast],
 });
 
-// const getMapNodes = (nodes) => ({
-//   values: nodes
-//     .filter((n) => n.type === "assign" && n.nodes[0].type === "value")
-//     .reduce((res, n) => ({ ...res, [n.nodes[0].value]: n }), {}),
-//   items: nodes.filter((n) => n.type !== "assign"),
-//   pairs: nodes
-//     .filter((n) => n.type === "assign" && n.nodes[0].type !== "value")
-//     .map((n) => n.nodes),
-// });
+const getMapNotes = (ast) =>
+  ast.flatMap((n) =>
+    n.type === "assign" && n.nodes[1].type === "push"
+      ? n.nodes[0].type === "value"
+        ? [
+            { type: "assign", nodes: [n.nodes[0], n.nodes[1].nodes[1]] },
+            {
+              type: "push",
+              nodes: [
+                n.nodes[1].nodes[0],
+                { type: "variable", name: n.nodes[0].value },
+              ],
+            },
+          ]
+        : []
+      : n
+  );
 
 s.addAttribute("ast", {
   start: (_1, a, _2) => a.ast[0],
@@ -144,9 +155,13 @@ s.addAttribute("ast", {
 
   atom: (a) => a.ast,
 
-  map: (_1, _2, a, _3, _4) => ({ type: "map", nodes: a.ast }),
+  map: (_1, _2, a, _3, _4) => ({ type: "map", nodes: getMapNotes(a.ast) }),
 
-  block: (_1, _2, a, _3, _4) => ({ type: "map", block: true, nodes: a.ast }),
+  block: (_1, _2, a, _3, _4) => ({
+    type: "map",
+    block: true,
+    nodes: getMapNotes(a.ast),
+  }),
 
   items: (a, _1, _2) => a.ast,
 
@@ -158,6 +173,11 @@ s.addAttribute("ast", {
       a.ast[0] || { type: "keyword", name: "any" },
       b.ast[0] || { type: "keyword", name: "any" },
     ],
+  }),
+
+  push: (a, _1, _2, _3, b) => ({
+    type: "push",
+    nodes: [a.ast, b.ast],
   }),
 
   string: (_1, a, _2) => ({ type: "value", value: a.sourceString }),
@@ -208,7 +228,10 @@ const captureNode = (node, checkVar, stopAtMap) => {
           checked[name] = true;
           node.nodes.push({
             type: "assign",
-            nodes: [{ type: "value", value: name }],
+            nodes: [
+              { type: "value", value: name },
+              { type: "keyword", name: "any" },
+            ],
           });
         } else {
           checked[name] = false;
@@ -247,19 +270,22 @@ const processNode = (node, processVar) => {
       }
     };
     for (const name in values) newProcessVar(name);
-    for (const n of node.nodes) processNode(n, newProcessVar);
+    const nodes = node.nodes.map((n) => processNode(n, newProcessVar));
     return {
       type: "map",
       block: node.block,
       values: ordered,
-      items: node.nodes.filter((n) => n.type !== "assign"),
-      pairs: node.nodes
+      items: nodes.filter((n) => n.type !== "assign" && n.type !== "push"),
+      pairs: nodes
         .filter((n) => n.type === "assign" && n.nodes[0].type !== "value")
         .map(({ nodes: [key, value] }) => {
           const parameters = [...new Set(getParameters(key))];
           if (!parameters) return { key, value };
           return { key, value, parameters };
         }),
+      pushes: nodes
+        .filter((n) => n.type === "push")
+        .map(({ nodes: [source, target] }) => ({ source, target })),
     };
   } else if (node.nodes) {
     return {
