@@ -301,7 +301,7 @@ const processNode = (node, processVar) => {
         .filter((n) => n.type === "assign" && n.nodes[0].type !== "value")
         .map(({ nodes: [key, value] }) => {
           const parameters = [...new Set(getParameters(key))];
-          if (!parameters) return { key, value };
+          if (parameters.length === 0) return { key, value };
           return { key, value, parameters };
         }),
       pushes: nodes

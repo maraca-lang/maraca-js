@@ -1,5 +1,5 @@
-import { join, meet } from "./src/lattice.js";
-import { ANY, NONE, GROUPS } from "./src/utils.js";
+import { join, meet } from "../src/lattice.js";
+import { ANY, NONE, GROUPS } from "../src/utils.js";
 
 const runTests = (func, tests) => {
   for (const [a, b, c] of tests) {

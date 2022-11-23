@@ -96,13 +96,13 @@ export const applyMap = ($map, $input) => {
         const key = resolve($key);
         const value = resolve($value);
         if (!parameters) {
-          if (meet(key, input) === input) return value;
+          if (meet(input, key) === input) return value;
         } else {
           const args = parameters.reduce(
             (res, k) => ({ ...res, [k]: ANY }),
             {}
           );
-          if (meet(key, input, args) === input) return value(args);
+          if (meet(input, key, args) === input) return value(args);
         }
       }
       return ANY;
@@ -228,7 +228,7 @@ export const meet = (a, b, context = {}) => {
   if (a.type === "map") {
     const keys = Object.keys({ ...a.values, ...b.values });
     const values = keys.map((k) =>
-      meet(applyMap(a, k), applyMap(b, k), context)
+      meet(resolve(applyMap(a, k)), resolve(applyMap(b, k)), context)
     );
     if (
       b.items.length === 0 &&
