@@ -51,7 +51,7 @@ const addValue = (func, multi, x) => {
 };
 
 export const simplify = (operation, values) => {
-  const [first, ...rest] = values;
+  const [first, ...rest] = [...values].reverse();
   const result = rest.reduce(
     (res, y) => addValue(operation === "meet" ? meet : join, res, y),
     [first]
@@ -87,6 +87,7 @@ export const resolve = (x, deep = false) => {
 export const applyMap = ($map, $input) => {
   const mapValue = resolve($map);
   if (mapValue === ANY) return ANY;
+  if (typeof mapValue === "function") return mapValue(resolve($input, true));
 
   const map = createMap(mapValue);
   const input = resolve($input);

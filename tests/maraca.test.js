@@ -31,4 +31,5 @@ test("sync", () => {
     pairs: [],
   });
   expect(run({}, `[[]: 1, : 2].['x': 1]`)).toEqual(1);
+  expect(run({ func: (x) => x + 1 }, `func.1`)).toEqual(2);
 });
