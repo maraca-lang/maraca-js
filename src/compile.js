@@ -68,16 +68,32 @@ const compile = (node, context) => {
       );
     }
 
+    const newContext = { ...context };
+    const values = {};
+    for (const { key, value } of node.values) {
+      const result = makeAtom(compile(value, newContext));
+      newContext[key] = result;
+      values[key] = result;
+    }
+    const items = node.items.map((n) => compile(n, newContext));
+    const pairs =
+      node.pairs.length === 0
+        ? []
+        : [
+            node.pairs.map(({ key, value, parameters }) => ({
+              key: compile(key, newContext),
+              value: parameters
+                ? (args) => compile(value, { ...newContext, ...args })
+                : compile(value, newContext),
+              parameters,
+            })),
+          ];
+
+    if (node.pushes.length === 0) {
+      return { type: "map", values, items, pairs };
+    }
+
     return derived(() => {
-      const newContext = { ...context };
-      const values = {};
-
-      for (const { key, value } of node.values) {
-        const result = makeAtom(compile(value, newContext));
-        newContext[key] = result;
-        values[key] = result;
-      }
-
       for (const push of node.pushes) {
         const source = compile(push.source, newContext);
         const target = compile(push.target, newContext);
@@ -90,24 +106,7 @@ const compile = (node, context) => {
           });
         }
       }
-
-      return {
-        type: "map",
-        values,
-        items: node.items.map((n) => compile(n, newContext)),
-        pairs:
-          node.pairs.length === 0
-            ? []
-            : [
-                node.pairs.map(({ key, value, parameters }) => ({
-                  key: compile(key, newContext),
-                  value: parameters
-                    ? (args) => compile(value, { ...newContext, ...args })
-                    : compile(value, newContext),
-                  parameters,
-                })),
-              ],
-      };
+      return { type: "map", values, items, pairs };
     });
   }
 
