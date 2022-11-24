@@ -1,7 +1,7 @@
 import { ANY, GROUPS } from "../src/values/index.js";
 import run from "../src/index.js";
 
-test("sync", () => {
+test.only("sync", () => {
   expect(run({}, `1 + 1`)).toEqual(2);
   expect(run({}, `1 | 2 | 3`)).toEqual({ type: "join", value: [1, 2, 3] });
   expect(run({}, `{ 1 > 2: 1, : 2 }`)).toEqual(2);
@@ -32,4 +32,5 @@ test("sync", () => {
   });
   expect(run({}, `[[]: 1, : 2].['x': 1]`)).toEqual(1);
   expect(run({ func: (x) => x + 1 }, `func.1`)).toEqual(2);
+  expect(run({}, `[['a': *x]: x + 1].['a': 1]`)).toEqual(2);
 });

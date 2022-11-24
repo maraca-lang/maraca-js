@@ -5,6 +5,15 @@ const getParameters = (node) => {
   if (node.nodes) return node.nodes.flatMap((n) => getParameters(n));
   return [];
 };
+const addParameters = (node) => {
+  if (node.type === "assign") {
+    const parameters = [...new Set(getParameters(node.nodes[0]))];
+    if (parameters.length > 0) node.parameters = parameters;
+  }
+  if (node.nodes) {
+    for (const n of node.nodes) addParameters(n);
+  }
+};
 
 const captureNode = (node, context, capture) => {
   if (node.type === "map") {
@@ -91,11 +100,11 @@ const processNode = (node, processVar) => {
       items: nodes.filter((n) => n.type !== "assign" && n.type !== "push"),
       pairs: nodes
         .filter((n) => n.type === "assign" && n.nodes[0].type !== "value")
-        .map(({ nodes: [key, value] }) => {
-          const parameters = [...new Set(getParameters(key))];
-          if (parameters.length === 0) return { key, value };
-          return { key, value, parameters };
-        }),
+        .map(({ nodes: [key, value], parameters }) => ({
+          key,
+          value,
+          parameters,
+        })),
       pushes: nodes
         .filter((n) => n.type === "push")
         .map(({ nodes: [source, target, trigger], first }) => ({
@@ -119,6 +128,7 @@ const processNode = (node, processVar) => {
 
 export default (script, library) => {
   const result = ast(script);
+  addParameters(result);
   captureNode(result, library);
   const final = processNode(result, () => {});
   // console.log(JSON.stringify(final, null, 2));

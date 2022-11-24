@@ -7,7 +7,7 @@ const isValue = (a) => typeof a === "number" || typeof a === "string";
 const contains = (outer, inner, context) => {
   if (outer?.type === "parameter") {
     context[outer.name] = inner;
-    return contains(outer.value, inner);
+    return contains(outer.value || ANY, inner);
   }
 
   if (inner === outer) return true;

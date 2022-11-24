@@ -15,6 +15,7 @@ const makeAtom = (value) => {
     typeof value === "string" ||
     value?.isStream ||
     value?.type === "atom" ||
+    value?.type === "parameter" ||
     (value?.type === "map" &&
       (Object.keys(value.values).length > 0 ||
         value.items.length > 0 ||
