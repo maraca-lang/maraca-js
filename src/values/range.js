@@ -1,4 +1,4 @@
-import { NONE, GROUPS } from "./utils.js";
+import { NONE, GROUPS } from "./index.js";
 
 const comparePos = (a, b, type) => {
   if (a.pos === b.pos) {
@@ -8,11 +8,15 @@ const comparePos = (a, b, type) => {
   return a.pos < b.pos ? -1 : 1;
 };
 
-const getLower = (x, y, type) =>
-  x && y ? (comparePos(x, y, type) === -1 ? x : y) : x || y;
+const getLower = (x, y, type) => {
+  if (x && y) return comparePos(x, y, type) === -1 ? x : y;
+  return type === "start" ? undefined : x || y;
+};
 
-const getHigher = (x, y, type) =>
-  x && y ? (comparePos(x, y, type) === 1 ? x : y) : x || y;
+const getHigher = (x, y, type) => {
+  if (x && y) return comparePos(x, y, type) === 1 ? x : y;
+  return type === "end" ? undefined : x || y;
+};
 
 const cleanRange = (p) => {
   if (!p.start) delete p.start;
@@ -20,7 +24,7 @@ const cleanRange = (p) => {
   return p;
 };
 
-export const rangeIncludes = ({ start, end }, n) => {
+export const rangeIncludesValue = ({ start, end }, n) => {
   if (start) {
     if (n < start.pos) return false;
     if (n === start.pos && !start.inc) return false;
@@ -31,6 +35,10 @@ export const rangeIncludes = ({ start, end }, n) => {
   }
   return true;
 };
+
+export const rangeIncludesRange = (outer, inner) =>
+  getLower(outer.start, inner.start, "start") === outer.start &&
+  getHigher(outer.end, inner.end, "end") === outer.end;
 
 export const joinRangeValue = ({ start, end }, n) => {
   if (start?.pos === n && !start.inc) {

@@ -1,9 +1,9 @@
+import { ANY, GROUPS } from "../src/values/index.js";
 import run from "../src/index.js";
-import { ANY, GROUPS } from "../src/utils";
 
 test("sync", () => {
   expect(run({}, `1 + 1`)).toEqual(2);
-  expect(run({}, `1 | 2`)).toEqual({ type: "join", value: [1, 2] });
+  expect(run({}, `1 | 2 | 3`)).toEqual({ type: "join", value: [1, 2, 3] });
   expect(run({}, `{ 1 > 2: 1, : 2 }`)).toEqual(2);
   expect(run({}, `['x': 1]`)).toEqual({
     type: "map",

@@ -1,11 +1,10 @@
 import compile from "./compile.js";
-import { resolve } from "./lattice.js";
-import parse from "./parse.js";
+import { resolve } from "./values/index.js";
+import parse from "./parse/index.js";
 import run from "./streams.js";
 
-export { resolve } from "./lattice.js";
+export { resolve } from "./values/index.js";
 export { atom, derived, effect } from "./streams.js";
-export { createMap } from "./utils.js";
 
 const combine = (source) => {
   if (typeof source === "string") return source;
