@@ -23,7 +23,12 @@ const makeAtom = (value) => {
   ) {
     return value;
   }
-  return { __type: "atom", value, atom: atom() };
+  return { __type: "atom", value, atom: atom(ANY) };
+};
+
+const resolveToAtom = (x) => {
+  if (typeof x === "object" && x.isStream) return resolveToAtom(x.get());
+  return x;
 };
 
 const compile = (node, context) => {
@@ -91,27 +96,34 @@ const compile = (node, context) => {
     return derived(() => {
       for (const push of node.pushes) {
         const target = compile(push.target, newContext);
-        if (target.__type === "atom") {
-          let skipFirst = !push.first;
-          const source = compile(push.source, newContext);
-          if (push.trigger) {
-            const trigger = compile(push.trigger, newContext);
-            let prevTrigger = {};
-            effect(() => {
-              const nextTrigger = trigger && resolve(trigger);
-              if (nextTrigger !== prevTrigger) {
+        let skipFirst = !push.first;
+        const source = compile(push.source, newContext);
+        if (push.trigger) {
+          const trigger = compile(push.trigger, newContext);
+          const triggerStream = derived(() =>
+            resolve(trigger) === NONE ? false : {}
+          );
+          let prevTrigger = {};
+          effect(() => {
+            const tar = resolveToAtom(target);
+            if (tar.__type === "atom") {
+              const nextTrigger = resolve(triggerStream);
+              if (nextTrigger && nextTrigger !== prevTrigger) {
                 prevTrigger = nextTrigger;
-                if (!skipFirst) target.atom.set(resolve(source, true));
-                skipFirst = false;
+                if (!skipFirst) tar.atom.set(resolve(source, true, true));
               }
-            });
-          } else {
-            effect(() => {
-              const res = resolve(source, true);
-              if (!skipFirst) target.atom.set(res);
-              skipFirst = false;
-            });
-          }
+            }
+            skipFirst = false;
+          });
+        } else {
+          effect(() => {
+            const tar = resolveToAtom(target);
+            if (tar.__type === "atom") {
+              const res = resolve(source, true, true);
+              if (!skipFirst) tar.atom.set(res);
+            }
+            skipFirst = false;
+          });
         }
       }
       return { __type: "map", values, items, pairs };

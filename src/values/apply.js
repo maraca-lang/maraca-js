@@ -4,14 +4,13 @@ import { ANY, NONE, resolve } from "./index.js";
 
 const cleanMap = (value) => {
   if (
+    value === ANY ||
+    value === NONE ||
     typeof value === "number" ||
     typeof value === "string" ||
     typeof value === "function"
   ) {
     return value;
-  }
-  if (!value) {
-    return value === undefined ? ANY : NONE;
   }
   if (Array.isArray(value)) {
     return { __type: "map", values: {}, items: value, pairs: [] };
