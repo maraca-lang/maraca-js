@@ -14,16 +14,16 @@ const makeAtom = (value) => {
     typeof value === "number" ||
     typeof value === "string" ||
     value?.isStream ||
-    value?.type === "atom" ||
-    value?.type === "parameter" ||
-    (value?.type === "map" &&
+    value?.__type === "atom" ||
+    value?.__type === "parameter" ||
+    (value?.__type === "map" &&
       (Object.keys(value.values).length > 0 ||
         value.items.length > 0 ||
         value.pairs.length > 0))
   ) {
     return value;
   }
-  return { type: "atom", value, atom: atom() };
+  return { __type: "atom", value, atom: atom() };
 };
 
 const compile = (node, context) => {
@@ -46,7 +46,7 @@ const compile = (node, context) => {
   }
 
   if (node.type === "parameter") {
-    return node;
+    return { __type: "parameter", name: node.name };
   }
 
   if (node.type === "map") {
@@ -85,13 +85,13 @@ const compile = (node, context) => {
           ];
 
     if (node.pushes.length === 0) {
-      return { type: "map", values, items, pairs };
+      return { __type: "map", values, items, pairs };
     }
 
     return derived(() => {
       for (const push of node.pushes) {
         const target = compile(push.target, newContext);
-        if (target.type === "atom") {
+        if (target.__type === "atom") {
           let skipFirst = !push.first;
           const source = compile(push.source, newContext);
           if (push.trigger) {
@@ -114,7 +114,7 @@ const compile = (node, context) => {
           }
         }
       }
-      return { type: "map", values, items, pairs };
+      return { __type: "map", values, items, pairs };
     });
   }
 
@@ -128,7 +128,7 @@ const compile = (node, context) => {
   if (node.type === "operation") {
     if (
       compiled.every(
-        (x) => !x?.isStream && x?.type !== "map" && x?.type !== "atom"
+        (x) => !x?.isStream && x?.__type !== "map" && x?.__type !== "atom"
       )
     ) {
       return doOperation(node.operation, compiled);

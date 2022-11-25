@@ -9,13 +9,13 @@ const join = (a, b) => {
   if (contains(a, b)) return a;
   if (contains(b, a)) return b;
 
-  if (a.type === "range" || b.type === "range") {
-    const [r, x] = a.type === "range" ? [a, b] : [b, a];
+  if (a.__type === "range" || b.__type === "range") {
+    const [r, x] = a.__type === "range" ? [a, b] : [b, a];
     if (typeof x === "number") {
       const res = joinRangeValue(r.value, x);
       if (res) return res;
     }
-    if (x.type === "range") {
+    if (x.__type === "range") {
       return joinRanges(r.value, x.value);
     }
     return null;
@@ -30,9 +30,9 @@ const meet = (a, b) => {
   if (contains(a, b)) return b;
   if (contains(b, a)) return a;
 
-  if (a.type === "range" || b.type === "range") {
-    const [r, x] = a.type === "range" ? [a, b] : [b, a];
-    if (x.type === "range") {
+  if (a.__type === "range" || b.__type === "range") {
+    const [r, x] = a.__type === "range" ? [a, b] : [b, a];
+    if (x.__type === "range") {
       return meetRanges(r.value, x.value);
     }
     if (x === GROUPS.INTEGER) {
@@ -41,11 +41,11 @@ const meet = (a, b) => {
     return NONE;
   }
 
-  if (a.type === "map" && b.type === "map") {
+  if (a.__type === "map" && b.__type === "map") {
     const keys = Object.keys({ ...a.values, ...b.values });
     const values = keys.map((k) => meet(apply(a, k), apply(b, k)));
     return {
-      type: "map",
+      __type: "map",
       values: Object.fromEntries(keys.map((k, i) => [k, values[i]])),
       items: [...a.items, ...b.items],
       pairs: [...a.pairs, ...b.pairs],
@@ -80,40 +80,40 @@ const simplify = (func, values, prev) => {
   return reversed.reduce((res, y) => addValue(func, res, y), base);
 };
 
-const combine = ({ type, value }) => {
-  const parameter = value.find((x) => x?.type === "parameter");
+const combine = ({ __type, value }) => {
+  const parameter = value.find((x) => x?.__type === "parameter");
   if (parameter) {
     return {
       ...parameter,
       value: combine({
-        type,
-        value: value.filter((x) => x?.type !== "parameter"),
+        __type,
+        value: value.filter((x) => x?.__type !== "parameter"),
       }),
     };
   }
 
-  const other = type === "meet" ? "join" : "meet";
-  const maps = type === "meet" ? [meet, join] : [join, meet];
+  const other = __type === "meet" ? "join" : "meet";
+  const maps = __type === "meet" ? [meet, join] : [join, meet];
   const result = value.reduce((a, b) => {
-    if (a?.type === type || b?.type === type) {
-      const [x, y] = a.type === type ? [a, b] : [b, a];
+    if (a?.__type === __type || b?.__type === __type) {
+      const [x, y] = a.__type === __type ? [a, b] : [b, a];
       const result = simplify(
         maps[0],
-        y.type === type ? y.value : [y],
+        y.__type === __type ? y.value : [y],
         x.value
       );
-      return result.length === 1 ? result[0] : { type, value: result };
+      return result.length === 1 ? result[0] : { __type, value: result };
     }
-    if (a?.type === other || b?.type === other) {
-      const [x, y] = a.type === other ? [a, b] : [b, a];
+    if (a?.__type === other || b?.__type === other) {
+      const [x, y] = a.__type === other ? [a, b] : [b, a];
       const result = simplify(
         maps[1],
         x.value.map((z) => maps[0](y, z))
       );
-      return result.length === 1 ? result[0] : { type, value: result };
+      return result.length === 1 ? result[0] : { __type, value: result };
     }
     const result = maps[0](a, b);
-    return result === null ? { type, value: [a, b] } : result;
+    return result === null ? { __type, value: [a, b] } : result;
   });
   return result;
 };

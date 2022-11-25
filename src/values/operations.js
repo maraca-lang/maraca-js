@@ -2,8 +2,8 @@ import combine from "./combine.js";
 import { ANY, NONE } from "./index.js";
 
 const operators = {
-  "|": (...args) => combine({ type: "join", value: args }),
-  "&": (...args) => combine({ type: "meet", value: args }),
+  "|": (...args) => combine({ __type: "join", value: args }),
+  "&": (...args) => combine({ __type: "meet", value: args }),
   "=": (a, b) => (a === b ? ANY : NONE),
   "!": (a, b) => (a !== b ? ANY : NONE),
 };

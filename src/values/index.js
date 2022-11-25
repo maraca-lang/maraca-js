@@ -6,9 +6,9 @@ export { default as doOperation } from "./operations";
 export const ANY = undefined;
 export const NONE = false;
 export const GROUPS = {
-  INTEGER: { type: "group", value: "integer" },
-  NUMBER: { type: "group", value: "number" },
-  STRING: { type: "group", value: "string" },
+  INTEGER: { __type: "group", value: "integer" },
+  NUMBER: { __type: "group", value: "number" },
+  STRING: { __type: "group", value: "string" },
 };
 
 export const resolve = (x, deep = false) => {
@@ -19,8 +19,11 @@ export const resolve = (x, deep = false) => {
   }
   if (typeof x === "object") {
     if (x.isStream) return resolve(x.get(), deep);
-    if (x.type === "atom") {
-      return combine({ type: "meet", value: [x.value, resolve(x.atom, deep)] });
+    if (x.__type === "atom") {
+      return combine({
+        __type: "meet",
+        value: [x.value, resolve(x.atom, deep)],
+      });
     }
     if (!deep) return x;
     return Object.fromEntries(

@@ -5,7 +5,7 @@ import { rangeIncludesValue, rangeIncludesRange } from "./range.js";
 const isValue = (a) => typeof a === "number" || typeof a === "string";
 
 const contains = (outer, inner, context) => {
-  if (outer?.type === "parameter") {
+  if (outer?.__type === "parameter") {
     context[outer.name] = inner;
     return contains(outer.value || ANY, inner);
   }
@@ -21,15 +21,15 @@ const contains = (outer, inner, context) => {
     if (isValue(outer)) {
       return inner === outer;
     }
-    if (outer.type === "group") {
+    if (outer.__type === "group") {
       if (outer === GROUPS.INTEGER) return Number.isInteger(inner);
       if (outer === GROUPS.NUMBER) return typeof inner === "number";
       if (outer === GROUPS.STRING) return typeof inner === "string";
     }
-    if (outer.type === "regex") {
+    if (outer.__type === "regex") {
       return typeof inner === "string" && outer.value.test(inner);
     }
-    if (outer.type === "range") {
+    if (outer.__type === "range") {
       if (typeof inner !== "number") return false;
       return rangeIncludesValue(outer.value, inner);
     }
@@ -37,27 +37,27 @@ const contains = (outer, inner, context) => {
 
   if (isValue(outer)) return false;
 
-  if (outer.type === "group") {
+  if (outer.__type === "group") {
     if (outer === GROUPS.STRING) {
-      return inner.type === "regex";
+      return inner.__type === "regex";
     }
     if (outer === GROUPS.NUMBER) {
-      return inner === GROUPS.INTEGER || inner.type === "range";
+      return inner === GROUPS.INTEGER || inner.__type === "range";
     }
     return false;
   }
 
-  if (inner.type !== outer.type) return false;
+  if (inner.__type !== outer.__type) return false;
 
-  if (inner.type === "regex") {
+  if (inner.__type === "regex") {
     return inner.value.toString() === outer.value.toString();
   }
 
-  if (inner.type === "range") {
+  if (inner.__type === "range") {
     return rangeIncludesRange(outer.value, inner.value);
   }
 
-  if (inner.type === "map") {
+  if (inner.__type === "map") {
     if (outer.pairs.length > 0 || outer.items.length > 0) return false;
     const keys = [
       ...new Set([

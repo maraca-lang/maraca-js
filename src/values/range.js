@@ -43,13 +43,13 @@ export const rangeIncludesRange = (outer, inner) =>
 export const joinRangeValue = ({ start, end }, n) => {
   if (start?.pos === n && !start.inc) {
     return {
-      type: "range",
+      __type: "range",
       value: cleanRange({ start: { ...start, inc: true }, end }),
     };
   }
   if (end?.pos === n && !end.inc) {
     return {
-      type: "range",
+      __type: "range",
       value: cleanRange({ start, end: { ...end, inc: true } }),
     };
   }
@@ -65,7 +65,7 @@ export const joinRanges = (r1, r2) => {
       (x.end.pos === y.start.pos && (x.end.inc || y.start.inc))
     ) {
       return {
-        type: "range",
+        __type: "range",
         value: cleanRange({
           start: x.start,
           end: getHigher(x.end, y.end, "end"),
@@ -82,7 +82,7 @@ export const joinRanges = (r1, r2) => {
       (x.start.pos === y.end.pos && (x.start.inc || y.end.inc))
     ) {
       return {
-        type: "range",
+        __type: "range",
         value: cleanRange({
           start: getLower(x.start, y.start, "start"),
           end: x.end,
@@ -110,5 +110,5 @@ export const meetRanges = (r1, r2) => {
       return start.inc && end.inc ? start.pos : NONE;
     }
   }
-  return { type: "range", value: cleanRange({ start, end }) };
+  return { __type: "range", value: cleanRange({ start, end }) };
 };
