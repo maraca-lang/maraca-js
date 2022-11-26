@@ -17,6 +17,13 @@ const contains = (outer, inner, context) => {
   if (outer === NONE) return false;
   if (outer === ANY) return true;
 
+  if (outer?.__type === "join") {
+    return outer.value.some((x) => contains(x, inner, context));
+  }
+  if (outer?.__type === "meet") {
+    return outer.value.every((x) => contains(x, inner, context));
+  }
+
   if (isValue(inner)) {
     if (isValue(outer)) {
       return inner === outer;
