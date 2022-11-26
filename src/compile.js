@@ -23,7 +23,7 @@ const makeAtom = (value) => {
   ) {
     return value;
   }
-  return { __type: "atom", value, atom: atom(ANY) };
+  return { __type: "atom", value, atom: atom(value) };
 };
 
 const resolveToAtom = (x) => {
@@ -31,7 +31,7 @@ const resolveToAtom = (x) => {
   return x;
 };
 
-const compile = (node, context) => {
+const compile = (node, context, pushes = []) => {
   if (node.type === "value") {
     return node.value;
   }
@@ -54,6 +54,13 @@ const compile = (node, context) => {
     return { __type: "parameter", name: node.name };
   }
 
+  if (node.type === "push") {
+    const [source, target, trigger] = node.nodes;
+    const result = makeAtom(compile(target, context));
+    pushes.push({ source, target: result, trigger, first: true });
+    return result;
+  }
+
   if (node.type === "map") {
     if (node.block) {
       return compile(
@@ -70,12 +77,15 @@ const compile = (node, context) => {
 
     const newContext = { ...context };
     const values = {};
+    const pushes = [];
     for (const { key, value } of node.values) {
-      const result = makeAtom(compile(value, newContext));
+      const result = makeAtom(compile(value, newContext, pushes));
       newContext[key] = result;
       values[key] = result;
     }
-    const items = node.items.map((n) => compile(n, newContext));
+    const items = node.items.map((n) =>
+      makeAtom(compile(n, newContext, pushes))
+    );
     const pairs =
       node.pairs.length === 0
         ? []
@@ -84,18 +94,23 @@ const compile = (node, context) => {
               key: compile(key, newContext),
               value: parameters
                 ? (args) => compile(value, { ...newContext, ...args })
-                : compile(value, newContext),
+                : makeAtom(compile(value, newContext, pushes)),
               parameters,
             })),
           ];
+    pushes.push(
+      ...node.pushes.map((n) => {
+        const [source, target, trigger] = n.nodes;
+        return { source, target: compile(target, newContext), trigger };
+      })
+    );
 
-    if (node.pushes.length === 0) {
+    if (pushes.length === 0) {
       return { __type: "map", values, items, pairs };
     }
 
     return derived(() => {
-      for (const push of node.pushes) {
-        const target = compile(push.target, newContext);
+      for (const push of pushes) {
         let skipFirst = !push.first;
         const source = compile(push.source, newContext);
         if (push.trigger) {
@@ -105,7 +120,7 @@ const compile = (node, context) => {
           );
           let prevTrigger = {};
           effect(() => {
-            const tar = resolveToAtom(target);
+            const tar = resolveToAtom(push.target);
             if (tar.__type === "atom") {
               const nextTrigger = resolve(triggerStream);
               if (nextTrigger && nextTrigger !== prevTrigger) {
@@ -117,7 +132,7 @@ const compile = (node, context) => {
           });
         } else {
           effect(() => {
-            const tar = resolveToAtom(target);
+            const tar = resolveToAtom(push.target);
             if (tar.__type === "atom") {
               const res = resolve(source, true, true);
               if (!skipFirst) tar.atom.set(res);

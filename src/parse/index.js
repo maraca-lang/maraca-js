@@ -55,31 +55,11 @@ const captureNode = (node, context, capture) => {
   }
 };
 
-const getMapNodes = (ast) =>
-  ast.flatMap((n) =>
-    n.type === "assign" && n.nodes[1].type === "push"
-      ? n.nodes[0].type === "value"
-        ? [
-            { type: "assign", nodes: [n.nodes[0], n.nodes[1].nodes[1]] },
-            {
-              type: "push",
-              first: true,
-              nodes: [
-                n.nodes[1].nodes[0],
-                { type: "variable", name: n.nodes[0].value },
-              ],
-            },
-          ]
-        : []
-      : n
-  );
-
 const processNode = (node, processVar) => {
   if (node.type === "map") {
-    const mapNodes = getMapNodes(node.nodes);
     const ordered = [];
     const processed = {};
-    const values = mapNodes
+    const values = node.nodes
       .filter((n) => n.type === "assign" && n.nodes[0].type === "value")
       .reduce((res, n) => ({ ...res, [n.nodes[0].value]: n }), {});
     const newProcessVar = (name) => {
@@ -92,7 +72,7 @@ const processNode = (node, processVar) => {
       }
     };
     for (const name in values) newProcessVar(name);
-    const nodes = mapNodes.map((n) => processNode(n, newProcessVar));
+    const nodes = node.nodes.map((n) => processNode(n, newProcessVar));
     return {
       type: "map",
       block: node.block,
@@ -105,14 +85,7 @@ const processNode = (node, processVar) => {
           value,
           parameters,
         })),
-      pushes: nodes
-        .filter((n) => n.type === "push")
-        .map(({ nodes: [source, target, trigger], first }) => ({
-          source,
-          target,
-          trigger,
-          first,
-        })),
+      pushes: nodes.filter((n) => n.type === "push"),
     };
   } else if (node.nodes) {
     return {

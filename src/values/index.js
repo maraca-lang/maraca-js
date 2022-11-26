@@ -1,4 +1,4 @@
-import combine from "./combine.js";
+import contains from "./contains.js";
 import { atom } from "../streams.js";
 
 export { default as apply } from "./apply";
@@ -21,17 +21,15 @@ export const resolve = (x, deep = false, copyAtom = false) => {
   if (typeof x === "object") {
     if (x.isStream) return resolve(x.get(), deep, copyAtom);
     if (x.__type === "atom") {
+      const atomValue = resolve(x.atom.get(), deep);
       if (copyAtom) {
         return {
           __type: "atom",
           value: x.value,
-          atom: atom(resolve(x.atom.get(), deep)),
+          atom: atom(atomValue),
         };
       }
-      return combine({
-        __type: "meet",
-        value: [x.value, resolve(x.atom.get(), deep)],
-      });
+      return contains(x.value, atomValue) ? atomValue : NONE;
     }
     if (!deep) return x;
     return Object.fromEntries(

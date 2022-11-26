@@ -1,5 +1,5 @@
 import compile from "./compile.js";
-import { apply, resolve } from "./values/index.js";
+import { apply, resolve, NONE } from "./values/index.js";
 import parse from "./parse/index.js";
 import run from "./streams.js";
 
@@ -28,6 +28,22 @@ const standard = {
           value: apply($map, value),
           parameters,
         }))
+      ),
+    };
+    return result;
+  },
+  filter: ({ items: [$data, $map] }) => {
+    const data = resolve($data);
+    const result = {
+      __type: "map",
+      values: Object.fromEntries(
+        Object.keys(data.values)
+          .map((k) => [k, data.values[k]])
+          .filter(([_, v]) => resolve(apply($map, v)) !== NONE)
+      ),
+      items: data.items.filter((v) => resolve(apply($map, v)) !== NONE),
+      pairs: data.pairs.map((pairs) =>
+        pairs.filter(({ value }) => resolve(apply($map, value)) !== NONE)
       ),
     };
     return result;

@@ -23,9 +23,15 @@ const numericOperators = {
 
 export default (operation, values) => {
   if (operators[operation]) {
+    if (operation === "!" && values.length === 1) {
+      return values[0] === NONE ? ANY : NONE;
+    }
     return operators[operation](...values);
   }
   if (values.every((a) => typeof a === "number")) {
+    if (operation === "-" && values.length === 1) {
+      return -values[0];
+    }
     return numericOperators[operation](...values);
   }
   return NONE;
