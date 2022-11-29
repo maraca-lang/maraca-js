@@ -12,16 +12,16 @@ const grammar = String.raw`Maraca {
     = nonemptyListOf<meet, joininner>
 
   joininner
-    = space* "|" space*
+    = space* "or" space*
 
   meet
     = nonemptyListOf<equal, meetinner>
 
   meetinner
-    = space* "&" space*
+    = space* "and" space*
 
   equal
-    = equal space* ("!" | "=") space* compare -- equal
+    = equal space* ("!=" | "=") space* compare -- equal
     | compare
 
   compare
@@ -41,7 +41,7 @@ const grammar = String.raw`Maraca {
     | unary
 
   unary
-    = ("!" | "-") space* apply -- unary
+    = "-" space* apply -- unary
     | apply
 
   apply
@@ -82,7 +82,7 @@ const grammar = String.raw`Maraca {
     = digit+ ("." digit+)?
 
   keyword
-    = "any" | "none" | "string" | "number" | "integer"
+    = "yes" | "no" | "string" | "number" | "integer"
 
   parameter
     = "*" variable
@@ -113,7 +113,7 @@ s.addAttribute("ast", {
       ? a.ast[0]
       : {
           type: "operation",
-          operation: "|",
+          operation: "or",
           nodes: a.ast,
         },
 
@@ -124,7 +124,7 @@ s.addAttribute("ast", {
       ? a.ast[0]
       : {
           type: "operation",
-          operation: "&",
+          operation: "and",
           nodes: a.ast,
         },
 
@@ -168,8 +168,8 @@ s.addAttribute("ast", {
   assign: (a, _1, _2, _3, b) => ({
     type: "assign",
     nodes: [
-      a.ast[0] || { type: "keyword", name: "any" },
-      b.ast[0] || { type: "keyword", name: "any" },
+      a.ast[0] || { type: "keyword", name: "yes" },
+      b.ast[0] || { type: "keyword", name: "yes" },
     ],
   }),
 

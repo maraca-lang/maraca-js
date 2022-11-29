@@ -31,7 +31,7 @@ export const resolve = (x, deep = false, copyAtom = false) => {
       }
       return contains(x.value, atomValue) ? atomValue : NONE;
     }
-    if (!deep) return x;
+    if ((x.__type && x.__type !== "map") || !deep) return x;
     return Object.fromEntries(
       Object.entries(x).map(([k, y]) => [k, resolve(y, true, copyAtom)])
     );

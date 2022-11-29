@@ -33,7 +33,7 @@ const captureNode = (node, context, capture) => {
           type: "assign",
           nodes: [
             { type: "value", value: name },
-            { type: "keyword", name: "any" },
+            { type: "keyword", name: "yes" },
           ],
         });
       };

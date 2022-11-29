@@ -38,8 +38,8 @@ const compile = (node, context, pushes = []) => {
 
   if (node.type === "keyword") {
     return {
-      any: ANY,
-      none: NONE,
+      yes: ANY,
+      no: NONE,
       string: GROUPS.STRING,
       number: GROUPS.NUMBER,
       integer: GROUPS.INTEGER,
