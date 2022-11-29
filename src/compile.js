@@ -148,8 +148,25 @@ const compile = (node, context, pushes = []) => {
   const compiled = node.nodes.map((n) => compile(n, context));
 
   if (node.type === "apply") {
-    const [$map, $input] = compiled;
-    return derived(() => apply($map, $input));
+    const [$map, ...$args] = compiled;
+    return derived(() => {
+      const map = resolve($map);
+      if (typeof map === "function") {
+        const args = map.reactiveFunc
+          ? $args
+          : $args.map(($arg) => resolve($arg, true));
+        if (node.complete || args.length >= map.length) return map(...args);
+        const result = Object.assign(
+          (...otherArgs) => map(...args, ...otherArgs),
+          { reactiveFunc: map.reactiveFunc }
+        );
+        Object.defineProperty(result, "length", {
+          value: map.length - args.length,
+        });
+        return result;
+      }
+      return compiled.reduce(($a, $b) => apply($a, $b));
+    });
   }
 
   if (node.type === "operation") {

@@ -45,7 +45,8 @@ const grammar = String.raw`Maraca {
     | apply
 
   apply
-    = apply space* "." space* atom -- apply
+    = apply space* ("." | "|>") space* atom -- apply
+    | apply arguments -- brackets
     | atom
 
   atom
@@ -60,11 +61,14 @@ const grammar = String.raw`Maraca {
   items
     = listOf<(assign | push | value), itemsinner> space* ","?
 
+  assign
+    = (arguments | value)? space* ":" space* (push | value)?
+
+  arguments
+    = "(" space* listOf<value, itemsinner> space* ","? space* ")"
+
   itemsinner
     = space* "," space*
-
-  assign
-    = value? space* ":" space* (push | value)?
 
   push
     = (value space* "?" space*)? value space* "->" space* value
@@ -152,7 +156,15 @@ s.addAttribute("ast", {
   }),
   unary: (a) => a.ast,
 
-  apply_apply: (a, _1, _2, _3, b) => ({ type: "apply", nodes: [a.ast, b.ast] }),
+  apply_apply: (a, _1, b, _2, c) =>
+    b.sourceString === "|>"
+      ? { type: "apply", pipe: true, nodes: [c.ast, a.ast] }
+      : { type: "apply", nodes: [a.ast, c.ast] },
+  apply_brackets: (a, b) => ({
+    type: "apply",
+    complete: true,
+    nodes: [a.ast, ...b.ast],
+  }),
   apply: (a) => a.ast,
 
   atom: (a) => a.ast,
@@ -168,10 +180,14 @@ s.addAttribute("ast", {
   assign: (a, _1, _2, _3, b) => ({
     type: "assign",
     nodes: [
-      a.ast[0] || { type: "keyword", name: "yes" },
       b.ast[0] || { type: "keyword", name: "yes" },
+      ...(Array.isArray(a.ast[0])
+        ? a.ast[0]
+        : [a.ast[0] || { type: "keyword", name: "yes" }]),
     ],
   }),
+
+  arguments: (_1, _2, a, _3, _4, _5, _6) => a.ast,
 
   push: (a, _1, _2, _3, b, _4, _5, _6, c) => ({
     type: "push",

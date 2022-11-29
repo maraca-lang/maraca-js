@@ -6,6 +6,12 @@ import run from "./streams.js";
 export { resolve } from "./values/index.js";
 export { atom, derived, effect } from "./streams.js";
 
+export const reactiveFunc = (func, length) => {
+  const result = Object.assign(func, { reactiveFunc: true });
+  Object.defineProperty(result, "length", { value: length || func.length });
+  return result;
+};
+
 const merge = (source) => {
   if (typeof source === "string") return source;
   return `[ ${Object.entries(source)
@@ -14,7 +20,7 @@ const merge = (source) => {
 };
 
 const standard = {
-  map: ({ items: [$data, $map] }) => {
+  map: reactiveFunc(($data, $map) => {
     const data = resolve($data);
     const result = {
       __type: "map",
@@ -31,8 +37,8 @@ const standard = {
       ),
     };
     return result;
-  },
-  filter: ({ items: [$data, $map] }) => {
+  }),
+  filter: reactiveFunc(($data, $map) => {
     const data = resolve($data);
     const result = {
       __type: "map",
@@ -47,7 +53,7 @@ const standard = {
       ),
     };
     return result;
-  },
+  }),
 };
 
 export default (library, source, update) => {

@@ -24,9 +24,12 @@ const cleanMap = (value) => {
 
 export default ($map, $input) => {
   const map = cleanMap(resolve($map));
-  const input = resolve($input);
 
-  if (typeof map === "function") return map(input);
+  if (typeof map === "function") {
+    return map(map.reactiveFunc ? $input : resolve($input, true));
+  }
+
+  const input = resolve($input);
 
   if (map?.__type !== "map") return contains(map, input) ? ANY : NONE;
 

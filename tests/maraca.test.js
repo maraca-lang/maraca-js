@@ -33,5 +33,15 @@ test.only("sync", () => {
   });
   expect(run({}, `[[]: 1, : 2].['x': 1]`)).toEqual(1);
   expect(run({ func: (x) => x + 1 }, `func.1`)).toEqual(2);
+  expect(run({ func: (x, y) => x - y }, `func.(5).(2)`)).toEqual(3);
+  expect(run({ func: (x, y) => x - y }, `func(5, 2)`)).toEqual(3);
+  expect(run({ func: (x, y) => x - y }, `5 |> func(2)`)).toEqual(3);
   expect(run({}, `[['a': *x]: x + 1].['a': 1]`)).toEqual(2);
+  expect(run({}, `[1, 2, 3] |> map.[*x: x + 1]`)).toEqual({
+    __type: "map",
+    values: {},
+    items: [2, 3, 4],
+    pairs: [],
+  });
+  expect(run({}, `[(*a, *b): a + b](1, 2)`)).toEqual(3);
 });

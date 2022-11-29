@@ -1,5 +1,24 @@
 import ast from "./ast.js";
 
+const unpackMultiArgs = (node) => {
+  if (node.type === "assign" && node.nodes.length > 2) {
+    const [value, ...args] = node.nodes;
+    return unpackMultiArgs(
+      args.reduceRight(
+        (res, key) => ({
+          type: "map",
+          nodes: [{ type: "assign", nodes: [res, key] }],
+        }),
+        value
+      ).nodes[0]
+    );
+  } else if (node.nodes) {
+    return { ...node, nodes: node.nodes.map((n) => unpackMultiArgs(n)) };
+  } else {
+    return node;
+  }
+};
+
 const getParameters = (node) => {
   if (node.type === "parameter") return [node.name];
   if (node.nodes) return node.nodes.flatMap((n) => getParameters(n));
@@ -7,7 +26,7 @@ const getParameters = (node) => {
 };
 const addParameters = (node) => {
   if (node.type === "assign") {
-    const parameters = [...new Set(getParameters(node.nodes[0]))];
+    const parameters = [...new Set(getParameters(node.nodes[1]))];
     if (parameters.length > 0) node.parameters = parameters;
   }
   if (node.nodes) {
@@ -18,8 +37,8 @@ const addParameters = (node) => {
 const captureNode = (node, context, capture) => {
   if (node.type === "map") {
     const varKeys = node.nodes
-      .filter((n) => n.type === "assign" && n.nodes[0].type === "value")
-      .map((n) => n.nodes[0].value);
+      .filter((n) => n.type === "assign" && n.nodes[1].type === "value")
+      .map((n) => n.nodes[1].value);
     const newContext = varKeys.reduce(
       (res, k) => ({ ...res, [k]: true }),
       context
@@ -32,8 +51,8 @@ const captureNode = (node, context, capture) => {
         node.nodes.push({
           type: "assign",
           nodes: [
-            { type: "value", value: name },
             { type: "keyword", name: "yes" },
+            { type: "value", value: name },
           ],
         });
       };
@@ -41,13 +60,12 @@ const captureNode = (node, context, capture) => {
       for (const n of node.nodes) captureNode(n, newContext);
     }
   } else if (node.type === "assign") {
-    const parameters = getParameters(node.nodes[0]);
-    const newContext = parameters.reduce(
+    const newContext = (node.parameters || []).reduce(
       (res, k) => ({ ...res, [k]: true }),
       context
     );
-    captureNode(node.nodes[0], context, capture);
-    captureNode(node.nodes[1], newContext, capture);
+    captureNode(node.nodes[0], newContext, capture);
+    captureNode(node.nodes[1], context, capture);
   } else if (node.nodes) {
     for (const n of node.nodes) captureNode(n, context, capture);
   } else if (node.type === "variable") {
@@ -60,13 +78,13 @@ const processNode = (node, processVar) => {
     const ordered = [];
     const processed = {};
     const values = node.nodes
-      .filter((n) => n.type === "assign" && n.nodes[0].type === "value")
-      .reduce((res, n) => ({ ...res, [n.nodes[0].value]: n }), {});
+      .filter((n) => n.type === "assign" && n.nodes[1].type === "value")
+      .reduce((res, n) => ({ ...res, [n.nodes[1].value]: n }), {});
     const newProcessVar = (name) => {
       if (!(name in processed)) {
         if (name in values) {
           processed[name] = true;
-          const [key, value] = processNode(values[name], newProcessVar).nodes;
+          const [value, key] = processNode(values[name], newProcessVar).nodes;
           ordered.push({ key: key.value, value });
         }
       }
@@ -79,8 +97,8 @@ const processNode = (node, processVar) => {
       values: ordered,
       items: nodes.filter((n) => n.type !== "assign" && n.type !== "push"),
       pairs: nodes
-        .filter((n) => n.type === "assign" && n.nodes[0].type !== "value")
-        .map(({ nodes: [key, value], parameters }) => ({
+        .filter((n) => n.type === "assign" && n.nodes[1].type !== "value")
+        .map(({ nodes: [value, key], parameters }) => ({
           key,
           value,
           parameters,
@@ -100,7 +118,7 @@ const processNode = (node, processVar) => {
 };
 
 export default (script, library) => {
-  const result = ast(script);
+  const result = unpackMultiArgs(ast(script));
   addParameters(result);
   captureNode(result, library);
   const final = processNode(result, () => {});
