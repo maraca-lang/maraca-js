@@ -1,6 +1,6 @@
 {
-  "name": "mnew",
-  "version": "0.0.1",
+  "name": "maraca",
+  "version": "0.10.0",
   "type": "module",
   "scripts": {
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js"
