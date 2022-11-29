@@ -44,4 +44,24 @@ test.only("sync", () => {
     pairs: [],
   });
   expect(run({}, `[(*a, *b): a + b](1, 2)`)).toEqual(3);
+  expect(run({}, `[['a': 1] and *x: x].['a': 1, 1, 2, 3]`)).toEqual({
+    __type: "map",
+    values: {},
+    items: [1, 2, 3],
+    pairs: [],
+  });
+  expect(run({}, `[['a': *x] and *y: [x, y]].['a': 1, 1, 2, 3]`)).toEqual({
+    __type: "map",
+    values: {},
+    items: [
+      1,
+      {
+        __type: "map",
+        values: {},
+        items: [1, 2, 3],
+        pairs: [],
+      },
+    ],
+    pairs: [],
+  });
 });

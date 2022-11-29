@@ -49,13 +49,14 @@ export default ($map, $input) => {
       for (const { key: $key, value, parameters } of pairs) {
         const key = resolve($key);
         if (!parameters) {
-          if (contains(key, input, {})) return value;
+          if (contains(key, input)) return value;
         } else {
           const args = parameters.reduce(
             (res, k) => ({ ...res, [k]: ANY }),
             {}
           );
-          if (contains(key, input, args)) return value(args);
+          const res = contains(key, input);
+          if (res) return value({ ...args, ...(res.context || {}) });
         }
       }
       return ANY;

@@ -93,7 +93,8 @@ const compile = (node, context, pushes = []) => {
             node.pairs.map(({ key, value, parameters }) => ({
               key: compile(key, newContext),
               value: parameters
-                ? (args) => compile(value, { ...newContext, ...args })
+                ? (args) =>
+                    compile(value, { ...context, ...newContext, ...args })
                 : makeAtom(compile(value, newContext, pushes)),
               parameters,
             })),
