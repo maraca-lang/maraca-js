@@ -74,10 +74,16 @@ const grammar = String.raw`Maraca {
     = (value space* "?" space*)? value space* "->" space* value
 
   string
-    = "'" (char | escape)* "'"
+    = "'" (svalue | chunk)* "'"
+
+  svalue
+    = "{" space* value space* "}"
+
+  chunk
+    = (char | escape)+
 
   char
-    = ~("'" | "\\") any
+    = ~("'" | "\\" | "{") any
 
   escape
     = "\\" any
@@ -185,6 +191,7 @@ s.addAttribute("ast", {
         ? a.ast[0]
         : [a.ast[0] || { type: "keyword", name: "yes" }]),
     ],
+    length: Array.isArray(a.ast[0]) ? a.ast[0].length : 1,
   }),
 
   arguments: (_1, _2, a, _3, _4, _5, _6) => a.ast,
@@ -194,7 +201,18 @@ s.addAttribute("ast", {
     nodes: [b.ast, c.ast, a.ast[0]].filter((x) => x),
   }),
 
-  string: (_1, a, _2) => ({ type: "value", value: a.sourceString }),
+  string: (_1, a, _2) =>
+    a.ast.length <= 1
+      ? a.ast[0] || { type: "value", value: "" }
+      : {
+          type: "operation",
+          operation: "concat",
+          nodes: a.ast,
+        },
+
+  svalue: (_1, _2, a, _3, _4) => a.ast,
+
+  chunk: (a) => ({ type: "value", value: a.sourceString }),
 
   char: (_) => null,
 

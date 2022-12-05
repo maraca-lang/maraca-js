@@ -13,6 +13,8 @@ const makeAtom = (value) => {
     value === NONE ||
     typeof value === "number" ||
     typeof value === "string" ||
+    Array.isArray(value) ||
+    (typeof value === "object" && value && !value.__type) ||
     value?.isStream ||
     value?.__type === "atom" ||
     value?.__type === "parameter" ||
@@ -90,12 +92,13 @@ const compile = (node, context, pushes = []) => {
       node.pairs.length === 0
         ? []
         : [
-            node.pairs.map(({ key, value, parameters }) => ({
+            node.pairs.map(({ key, value, length, parameters }) => ({
               key: compile(key, newContext),
               value: parameters
                 ? (args) =>
                     compile(value, { ...context, ...newContext, ...args })
                 : makeAtom(compile(value, newContext, pushes)),
+              length,
               parameters,
             })),
           ];
@@ -150,24 +153,7 @@ const compile = (node, context, pushes = []) => {
 
   if (node.type === "apply") {
     const [$map, ...$args] = compiled;
-    return derived(() => {
-      const map = resolve($map);
-      if (typeof map === "function") {
-        const args = map.reactiveFunc
-          ? $args
-          : $args.map(($arg) => resolve($arg, true));
-        if (node.complete || args.length >= map.length) return map(...args);
-        const result = Object.assign(
-          (...otherArgs) => map(...args, ...otherArgs),
-          { reactiveFunc: map.reactiveFunc }
-        );
-        Object.defineProperty(result, "length", {
-          value: map.length - args.length,
-        });
-        return result;
-      }
-      return compiled.reduce(($a, $b) => apply($a, $b));
-    });
+    return derived(() => apply($map, $args, node.complete));
   }
 
   if (node.type === "operation") {

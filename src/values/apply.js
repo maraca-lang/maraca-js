@@ -22,7 +22,7 @@ const cleanMap = (value) => {
   return NONE;
 };
 
-export default ($map, $input) => {
+export const applySingle = ($map, $input, $args) => {
   const map = cleanMap(resolve($map));
 
   if (typeof map === "function") {
@@ -46,7 +46,7 @@ export default ($map, $input) => {
 
   if (map.pairs.length > 0) {
     const pairResults = map.pairs.map((pairs) => {
-      for (const { key: $key, value, parameters } of pairs) {
+      for (const { key: $key, value, length, parameters } of pairs) {
         const key = resolve($key);
         if (!parameters) {
           if (contains(key, input)) return value;
@@ -56,7 +56,12 @@ export default ($map, $input) => {
             {}
           );
           const res = contains(key, input);
-          if (res) return value({ ...args, ...(res.context || {}) });
+          if (res) {
+            const funcRes = value({ ...args, ...(res.context || {}) });
+            if (!$args || length === 1) return funcRes;
+            const [$next = ANY, ...$other] = $args;
+            return applySingle(funcRes, $next, $other);
+          }
         }
       }
       return ANY;
@@ -65,4 +70,26 @@ export default ($map, $input) => {
   }
 
   return ANY;
+};
+
+export default ($map, $args, complete) => {
+  const map = resolve($map);
+  if (typeof map === "function") {
+    const args = map.reactiveFunc
+      ? $args
+      : $args.map(($arg) => resolve($arg, true));
+    if (complete || args.length >= map.length) return map(...args);
+    const result = Object.assign((...otherArgs) => map(...args, ...otherArgs), {
+      reactiveFunc: map.reactiveFunc,
+    });
+    Object.defineProperty(result, "length", {
+      value: map.length - args.length,
+    });
+    return result;
+  }
+  if (complete) {
+    const [$first, ...$other] = $args;
+    return applySingle($map, $first, $other);
+  }
+  return [$map, ...$args].reduce(($a, $b) => applySingle($a, $b));
 };

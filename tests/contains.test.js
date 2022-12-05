@@ -2,7 +2,7 @@ import contains from "../src/values/contains.js";
 import { ANY, NONE, GROUPS } from "../src/values/index.js";
 
 test("contains: any", () => {
-  expect(contains(ANY, NONE)).toEqual({ needed: ANY });
+  expect(contains(ANY, NONE)).toEqual({ needed: NONE });
   expect(contains(ANY, 1)).toEqual({ needed: 1 });
   expect(contains(ANY, GROUPS.STRING)).toEqual({ needed: GROUPS.STRING });
 });

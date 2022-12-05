@@ -1,7 +1,7 @@
 import contains from "./contains.js";
 import { atom } from "../streams.js";
 
-export { default as apply } from "./apply";
+export { default as apply, applySingle } from "./apply";
 export { default as doOperation } from "./operations";
 
 export const ANY = true;
@@ -10,6 +10,17 @@ export const GROUPS = {
   INTEGER: { __type: "group", value: "integer" },
   NUMBER: { __type: "group", value: "number" },
   STRING: { __type: "group", value: "string" },
+};
+
+export const cleanValue = (x) => {
+  if (!x) return x;
+  if (Array.isArray(x)) {
+    return { __type: "map", values: {}, items: x, pairs: [] };
+  }
+  if (typeof x === "object" && !x.__type) {
+    return { __type: "map", values: x, items: [], pairs: [] };
+  }
+  return x;
 };
 
 export const resolve = (x, deep = false, copyAtom = false) => {

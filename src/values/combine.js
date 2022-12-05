@@ -1,9 +1,12 @@
-import apply from "./apply.js";
+import { applySingle } from "./apply.js";
 import contains from "./contains.js";
-import { NONE, GROUPS } from "./index.js";
+import { cleanValue, NONE, GROUPS } from "./index.js";
 import { joinRanges, joinRangeValue, meetRanges } from "./range.js";
 
-const join = (a, b) => {
+const join = (_a, _b) => {
+  const a = cleanValue(_a);
+  const b = cleanValue(_b);
+
   if (a?.isStream || b?.isStream) return null;
 
   if (contains(a, b)) return a;
@@ -24,7 +27,10 @@ const join = (a, b) => {
   return null;
 };
 
-const meet = (a, b) => {
+const meet = (_a, _b) => {
+  const a = cleanValue(_a);
+  const b = cleanValue(_b);
+
   if (a?.isStream || b?.isStream) return null;
 
   if (contains(a, b)) return b;
@@ -43,7 +49,7 @@ const meet = (a, b) => {
 
   if (a.__type === "map" && b.__type === "map") {
     const keys = Object.keys({ ...a.values, ...b.values });
-    const values = keys.map((k) => meet(apply(a, k), apply(b, k)));
+    const values = keys.map((k) => meet(applySingle(a, k), applySingle(b, k)));
     return {
       __type: "map",
       values: Object.fromEntries(keys.map((k, i) => [k, values[i]])),

@@ -5,9 +5,11 @@ const unpackMultiArgs = (node) => {
     const [value, ...args] = node.nodes;
     return unpackMultiArgs(
       args.reduceRight(
-        (res, key) => ({
+        (res, key, i) => ({
           type: "map",
-          nodes: [{ type: "assign", nodes: [res, key] }],
+          nodes: [
+            { type: "assign", nodes: [res, key], length: args.length - i },
+          ],
         }),
         value
       ).nodes[0]
@@ -51,9 +53,16 @@ const captureNode = (node, context, capture) => {
         node.nodes.push({
           type: "assign",
           nodes: [
-            { type: "keyword", name: "yes" },
+            {
+              type: "push",
+              nodes: [
+                { type: "keyword", name: "no" },
+                { type: "keyword", name: "yes" },
+              ],
+            },
             { type: "value", value: name },
           ],
+          length: 1,
         });
       };
       for (const n of node.nodes) captureNode(n, newContext, newCapture);
@@ -86,6 +95,8 @@ const processNode = (node, processVar) => {
           processed[name] = true;
           const [value, key] = processNode(values[name], newProcessVar).nodes;
           ordered.push({ key: key.value, value });
+        } else {
+          processVar(name);
         }
       }
     };
@@ -98,9 +109,10 @@ const processNode = (node, processVar) => {
       items: nodes.filter((n) => n.type !== "assign" && n.type !== "push"),
       pairs: nodes
         .filter((n) => n.type === "assign" && n.nodes[1].type !== "value")
-        .map(({ nodes: [value, key], parameters }) => ({
+        .map(({ nodes: [value, key], length, parameters }) => ({
           key,
           value,
+          length,
           parameters,
         })),
       pushes: nodes.filter((n) => n.type === "push"),

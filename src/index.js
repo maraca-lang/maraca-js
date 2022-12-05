@@ -1,5 +1,5 @@
 import compile from "./compile.js";
-import { apply, resolve, NONE } from "./values/index.js";
+import { apply, resolve, ANY, NONE } from "./values/index.js";
 import parse from "./parse/index.js";
 import run from "./streams.js";
 
@@ -22,16 +22,22 @@ const merge = (source) => {
 const standard = {
   map: reactiveFunc(($data, $map) => {
     const data = resolve($data);
+    if (Array.isArray(data)) {
+      return data.map((x, i) => apply($map, [x, i + 1], true));
+    }
     const result = {
       __type: "map",
       values: Object.fromEntries(
-        Object.keys(data.values).map((k) => [k, apply($map, data.values[k])])
+        Object.keys(data.values).map((k) => [
+          k,
+          apply($map, [data.values[k], k], true),
+        ])
       ),
-      items: data.items.map((x) => apply($map, x)),
+      items: data.items.map((x, i) => apply($map, [x, i + 1], true)),
       pairs: data.pairs.map((pairs) =>
         pairs.map(({ key, value, parameters }) => ({
           key,
-          value: apply($map, value),
+          value: apply($map, [value, ANY], true),
           parameters,
         }))
       ),
@@ -40,16 +46,25 @@ const standard = {
   }),
   filter: reactiveFunc(($data, $map) => {
     const data = resolve($data);
+    if (Array.isArray(data)) {
+      return data.filter(
+        (v, i) => resolve(apply($map, [v, i + 1], true)) !== NONE
+      );
+    }
     const result = {
       __type: "map",
       values: Object.fromEntries(
         Object.keys(data.values)
           .map((k) => [k, data.values[k]])
-          .filter(([_, v]) => resolve(apply($map, v)) !== NONE)
+          .filter(([k, v]) => resolve(apply($map, [v, k], true)) !== NONE)
       ),
-      items: data.items.filter((v) => resolve(apply($map, v)) !== NONE),
+      items: data.items.filter(
+        (v, i) => resolve(apply($map, [v, i + 1], true)) !== NONE
+      ),
       pairs: data.pairs.map((pairs) =>
-        pairs.filter(({ value }) => resolve(apply($map, value)) !== NONE)
+        pairs.filter(
+          ({ value }) => resolve(apply($map, [value, ANY], true)) !== NONE
+        )
       ),
     };
     return result;

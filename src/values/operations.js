@@ -6,6 +6,7 @@ const operators = {
   and: (...args) => combine({ __type: "meet", value: args }),
   "=": (a, b) => (a === b ? ANY : NONE),
   "!=": (a, b) => (a !== b ? ANY : NONE),
+  concat: (...args) => args.filter((x) => x !== NONE).join(""),
 };
 
 const numericOperators = {

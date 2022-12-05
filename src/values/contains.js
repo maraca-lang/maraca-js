@@ -1,10 +1,13 @@
-import apply from "./apply.js";
-import { ANY, NONE, GROUPS } from "./index.js";
+import { applySingle } from "./apply.js";
+import { cleanValue, ANY, NONE, GROUPS } from "./index.js";
 import { rangeIncludesValue, rangeIncludesRange } from "./range.js";
 
 const isValue = (a) => typeof a === "number" || typeof a === "string";
 
-const contains = (outer, inner) => {
+const contains = (_outer, _inner) => {
+  const outer = cleanValue(_outer);
+  const inner = cleanValue(_inner);
+
   if (outer?.__type === "parameter") {
     const res = contains(outer.value || ANY, inner);
     if (!res) return false;
@@ -19,10 +22,8 @@ const contains = (outer, inner) => {
 
   if (inner === outer) return { needed: ANY };
 
-  if (inner === NONE) return { needed: ANY };
-  if (inner === ANY) return false;
-  if (outer === NONE) return false;
-  if (outer === ANY) return { needed: inner };
+  if (outer === ANY || inner === NONE) return { needed: inner };
+  if (outer === NONE || inner === ANY) return false;
 
   if (outer?.__type === "join") {
     let context = false;
@@ -109,8 +110,8 @@ const contains = (outer, inner) => {
     const needed = { __type: "map", values: {}, items: [], pairs: [] };
     let context = {};
     for (const k of keys) {
-      const a = apply(outer, k);
-      const b = apply(inner, k);
+      const a = applySingle(outer, k);
+      const b = applySingle(inner, k);
       const res = contains(a, b);
       if (!res) return false;
       if (res.needed !== ANY) {
