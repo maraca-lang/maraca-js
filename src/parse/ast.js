@@ -12,13 +12,13 @@ const grammar = String.raw`Maraca {
     = nonemptyListOf<meet, joininner>
 
   joininner
-    = space* "or" space*
+    = space* "|" space*
 
   meet
     = nonemptyListOf<equal, meetinner>
 
   meetinner
-    = space* "and" space*
+    = space* "&" space*
 
   equal
     = equal space* ("!=" | "=") space* compare -- equal
@@ -45,7 +45,7 @@ const grammar = String.raw`Maraca {
     | apply
 
   apply
-    = apply space* ("." | "|>") space* atom -- apply
+    = apply space* ("." | ">>") space* atom -- apply
     | apply arguments -- brackets
     | atom
 
@@ -123,7 +123,7 @@ s.addAttribute("ast", {
       ? a.ast[0]
       : {
           type: "operation",
-          operation: "or",
+          operation: "|",
           nodes: a.ast,
         },
 
@@ -134,7 +134,7 @@ s.addAttribute("ast", {
       ? a.ast[0]
       : {
           type: "operation",
-          operation: "and",
+          operation: "&",
           nodes: a.ast,
         },
 
@@ -163,7 +163,7 @@ s.addAttribute("ast", {
   unary: (a) => a.ast,
 
   apply_apply: (a, _1, b, _2, c) =>
-    b.sourceString === "|>"
+    b.sourceString === ">>"
       ? { type: "apply", pipe: true, nodes: [c.ast, a.ast] }
       : { type: "apply", nodes: [a.ast, c.ast] },
   apply_brackets: (a, b) => ({
