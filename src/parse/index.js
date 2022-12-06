@@ -1,9 +1,32 @@
 import ast from "./ast.js";
 
-const unpackMultiArgs = (node) => {
-  if (node.type === "assign" && node.nodes.length > 2) {
+const processAst = (node) => {
+  if (
+    node.type === "map" &&
+    node.block &&
+    !node.nodes.some(
+      (n) =>
+        n.type === "assign" &&
+        n.nodes[1].type === "keyword" &&
+        n.nodes[1].name === "yes"
+    )
+  ) {
+    return {
+      ...node,
+      nodes: [
+        ...node.nodes.map((n) => processAst(n)),
+        {
+          type: "assign",
+          nodes: [
+            { type: "keyword", name: "no" },
+            { type: "keyword", name: "yes" },
+          ],
+        },
+      ],
+    };
+  } else if (node.type === "assign" && node.nodes.length > 2) {
     const [value, ...args] = node.nodes;
-    return unpackMultiArgs(
+    return processAst(
       args.reduceRight(
         (res, key, i) => ({
           type: "map",
@@ -15,7 +38,7 @@ const unpackMultiArgs = (node) => {
       ).nodes[0]
     );
   } else if (node.nodes) {
-    return { ...node, nodes: node.nodes.map((n) => unpackMultiArgs(n)) };
+    return { ...node, nodes: node.nodes.map((n) => processAst(n)) };
   } else {
     return node;
   }
@@ -130,7 +153,7 @@ const processNode = (node, processVar) => {
 };
 
 export default (script, library) => {
-  const result = unpackMultiArgs(ast(script));
+  const result = processAst(ast(script));
   addParameters(result);
   captureNode(result, library);
   const final = processNode(result, () => {});
