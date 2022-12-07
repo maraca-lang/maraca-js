@@ -212,7 +212,10 @@ s.addAttribute("ast", {
 
   svalue: (_1, _2, a, _3, _4) => a.ast,
 
-  chunk: (a) => ({ type: "value", value: a.sourceString }),
+  chunk: (a) => ({
+    type: "value",
+    value: a.sourceString.replace(/\\(.)/g, (_, a) => a),
+  }),
 
   char: (_) => null,
 
