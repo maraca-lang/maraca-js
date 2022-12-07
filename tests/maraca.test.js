@@ -1,11 +1,11 @@
-import { NONE, GROUPS } from "../src/values/index.js";
+import { NO, GROUPS } from "../src/values/index.js";
 import run from "../src/index.js";
 
 test.only("sync", () => {
   expect(run({}, `1 + 1`)).toEqual(2);
   expect(run({}, `1 | 2 | 3`)).toEqual({ __type: "join", value: [1, 2, 3] });
   expect(run({}, `{ 1 > 2: 1, : 2 }`)).toEqual(2);
-  expect(run({}, `{ 1 > 2: 1 }`)).toEqual(NONE);
+  expect(run({}, `{ 1 > 2: 1 }`)).toEqual(NO);
   expect(run({}, `{ 'x': 1 -> yes, : x + 1 }`)).toEqual(2);
   expect(run({}, `['x': 1]`)).toEqual({
     __type: "map",
@@ -28,7 +28,7 @@ test.only("sync", () => {
   });
   expect(run({}, `['x': y]`)).toEqual({
     __type: "map",
-    values: { x: NONE, y: NONE },
+    values: { x: NO, y: NO },
     items: [],
     pairs: [],
   });

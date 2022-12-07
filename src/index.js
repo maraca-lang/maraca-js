@@ -1,9 +1,9 @@
 import compile from "./compile.js";
-import { apply, resolve, ANY, NONE } from "./values/index.js";
+import { apply, resolve, YES, NO } from "./values/index.js";
 import parse from "./parse/index.js";
 import run from "./streams.js";
 
-export { resolve } from "./values/index.js";
+export { YES, NO, resolve } from "./values/index.js";
 export { atom, derived, effect } from "./streams.js";
 
 export const reactiveFunc = (func, length) => {
@@ -37,7 +37,7 @@ const standard = {
       pairs: data.pairs.map((pairs) =>
         pairs.map(({ key, value, parameters }) => ({
           key,
-          value: apply($map, [value, ANY], true),
+          value: apply($map, [value, YES], true),
           parameters,
         }))
       ),
@@ -48,7 +48,7 @@ const standard = {
     const data = resolve($data);
     if (Array.isArray(data)) {
       return data.filter(
-        (v, i) => resolve(apply($map, [v, i + 1], true)) !== NONE
+        (v, i) => resolve(apply($map, [v, i + 1], true)) !== NO
       );
     }
     const result = {
@@ -56,14 +56,14 @@ const standard = {
       values: Object.fromEntries(
         Object.keys(data.values)
           .map((k) => [k, data.values[k]])
-          .filter(([k, v]) => resolve(apply($map, [v, k], true)) !== NONE)
+          .filter(([k, v]) => resolve(apply($map, [v, k], true)) !== NO)
       ),
       items: data.items.filter(
-        (v, i) => resolve(apply($map, [v, i + 1], true)) !== NONE
+        (v, i) => resolve(apply($map, [v, i + 1], true)) !== NO
       ),
       pairs: data.pairs.map((pairs) =>
         pairs.filter(
-          ({ value }) => resolve(apply($map, [value, ANY], true)) !== NONE
+          ({ value }) => resolve(apply($map, [value, YES], true)) !== NO
         )
       ),
     };

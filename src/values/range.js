@@ -1,4 +1,4 @@
-import { NONE, GROUPS } from "./index.js";
+import { NO, GROUPS } from "./index.js";
 
 const comparePos = (a, b, type) => {
   if (a.pos === b.pos) {
@@ -105,9 +105,9 @@ export const meetRanges = (r1, r2) => {
   const start = getHigher(r1.start, r2.start, "start");
   const end = getLower(r1.end, r2.end, "end");
   if (start && end) {
-    if (start.pos > end.pos) return NONE;
+    if (start.pos > end.pos) return NO;
     if (start.pos === end.pos) {
-      return start.inc && end.inc ? start.pos : NONE;
+      return start.inc && end.inc ? start.pos : NO;
     }
   }
   return { __type: "range", value: cleanRange({ start, end }) };

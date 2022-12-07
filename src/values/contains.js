@@ -1,5 +1,5 @@
 import { applySingle } from "./apply.js";
-import { cleanValue, ANY, NONE, GROUPS } from "./index.js";
+import { cleanValue, YES, NO, GROUPS } from "./index.js";
 import { rangeIncludesValue, rangeIncludesRange } from "./range.js";
 
 const isValue = (a) => typeof a === "number" || typeof a === "string";
@@ -9,10 +9,10 @@ const contains = (_outer, _inner) => {
   const inner = cleanValue(_inner);
 
   if (outer?.__type === "parameter") {
-    const res = contains(outer.value || ANY, inner);
+    const res = contains(outer.value || YES, inner);
     if (!res) return false;
     return {
-      needed: ANY,
+      needed: YES,
       context: {
         ...(res.context || {}),
         [outer.name]: res.needed,
@@ -20,10 +20,10 @@ const contains = (_outer, _inner) => {
     };
   }
 
-  if (inner === outer) return { needed: ANY };
+  if (inner === outer) return { needed: YES };
 
-  if (outer === ANY || inner === NONE) return { needed: inner };
-  if (outer === NONE || inner === ANY) return false;
+  if (outer === YES || inner === NO) return { needed: inner };
+  if (outer === NO || inner === YES) return false;
 
   if (outer?.__type === "join") {
     let context = false;
@@ -32,8 +32,8 @@ const contains = (_outer, _inner) => {
       if (res) context = { ...(context || {}), ...(res.context || {}) };
     }
     return context && Object.keys(context).length > 0
-      ? { needed: ANY, context }
-      : { needed: ANY };
+      ? { needed: YES, context }
+      : { needed: YES };
   }
   if (outer?.__type === "meet") {
     let context = {};
@@ -42,13 +42,13 @@ const contains = (_outer, _inner) => {
       context = context && context && { ...context, ...(res.context || {}) };
     }
     return context && Object.keys(context).length > 0
-      ? { needed: ANY, context }
-      : { needed: ANY };
+      ? { needed: YES, context }
+      : { needed: YES };
   }
 
   if (isValue(inner)) {
     if (isValue(outer)) {
-      return inner === outer && { needed: ANY };
+      return inner === outer && { needed: YES };
     }
     if (outer.__type === "group") {
       if (outer === GROUPS.INTEGER) {
@@ -92,7 +92,7 @@ const contains = (_outer, _inner) => {
   if (inner.__type !== outer.__type) return false;
 
   if (inner.__type === "regex") {
-    return inner.value.toString() === outer.value.toString() && { needed: ANY };
+    return inner.value.toString() === outer.value.toString() && { needed: YES };
   }
 
   if (inner.__type === "range") {
@@ -114,7 +114,7 @@ const contains = (_outer, _inner) => {
       const b = applySingle(inner, k);
       const res = contains(a, b);
       if (!res) return false;
-      if (res.needed !== ANY) {
+      if (res.needed !== YES) {
         if (/\d+/.test(k)) needed.items[parseInt(k, 10) - 1] = b;
         else needed.values[k] = b;
       }

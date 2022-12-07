@@ -1,6 +1,6 @@
 import { applySingle } from "./apply.js";
 import contains from "./contains.js";
-import { cleanValue, NONE, GROUPS } from "./index.js";
+import { cleanValue, NO, GROUPS } from "./index.js";
 import { joinRanges, joinRangeValue, meetRanges } from "./range.js";
 
 const join = (_a, _b) => {
@@ -44,7 +44,7 @@ const meet = (_a, _b) => {
     if (x === GROUPS.INTEGER) {
       return null;
     }
-    return NONE;
+    return NO;
   }
 
   if (a.__type === "map" && b.__type === "map") {

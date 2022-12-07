@@ -1,11 +1,11 @@
 import combine from "./combine.js";
 import contains from "./contains.js";
-import { ANY, NONE, resolve } from "./index.js";
+import { YES, NO, resolve } from "./index.js";
 
 const cleanMap = (value) => {
   if (
-    value === ANY ||
-    value === NONE ||
+    value === YES ||
+    value === NO ||
     typeof value === "number" ||
     typeof value === "string" ||
     typeof value === "function"
@@ -19,7 +19,7 @@ const cleanMap = (value) => {
     if (value.__type) return value;
     return { __type: "map", values: value, items: [], pairs: [] };
   }
-  return NONE;
+  return NO;
 };
 
 export const applySingle = ($map, $input, $args) => {
@@ -31,7 +31,7 @@ export const applySingle = ($map, $input, $args) => {
 
   const input = resolve($input);
 
-  if (map?.__type !== "map") return contains(map, input) ? ANY : NONE;
+  if (map?.__type !== "map") return contains(map, input) ? YES : NO;
 
   if (Number.isInteger(input) && input - 1 in map.items) {
     return map.items[input - 1];
@@ -52,24 +52,24 @@ export const applySingle = ($map, $input, $args) => {
           if (contains(key, input)) return value;
         } else {
           const args = parameters.reduce(
-            (res, k) => ({ ...res, [k]: ANY }),
+            (res, k) => ({ ...res, [k]: YES }),
             {}
           );
           const res = contains(key, input);
           if (res) {
             const funcRes = value({ ...args, ...(res.context || {}) });
             if (!$args || length === 1) return funcRes;
-            const [$next = ANY, ...$other] = $args;
+            const [$next = YES, ...$other] = $args;
             return applySingle(funcRes, $next, $other);
           }
         }
       }
-      return ANY;
+      return YES;
     });
     return combine({ __type: "meet", value: pairResults });
   }
 
-  return ANY;
+  return YES;
 };
 
 export default ($map, $args, complete) => {

@@ -1,7 +1,7 @@
 import { atom, derived, effect } from "./streams.js";
 import {
-  ANY,
-  NONE,
+  YES,
+  NO,
   GROUPS,
   apply,
   doOperation,
@@ -10,7 +10,7 @@ import {
 
 const makeAtom = (value) => {
   if (
-    value === NONE ||
+    value === NO ||
     typeof value === "number" ||
     typeof value === "string" ||
     Array.isArray(value) ||
@@ -40,8 +40,8 @@ const compile = (node, context, pushes = []) => {
 
   if (node.type === "keyword") {
     return {
-      yes: ANY,
-      no: NONE,
+      yes: YES,
+      no: NO,
       string: GROUPS.STRING,
       number: GROUPS.NUMBER,
       integer: GROUPS.INTEGER,
@@ -70,7 +70,7 @@ const compile = (node, context, pushes = []) => {
           type: "apply",
           nodes: [
             { ...node, block: false },
-            { type: "value", value: ANY },
+            { type: "value", value: YES },
           ],
         },
         context
@@ -120,7 +120,7 @@ const compile = (node, context, pushes = []) => {
         if (push.trigger) {
           const trigger = compile(push.trigger, newContext);
           const triggerStream = derived(() =>
-            resolve(trigger) === NONE ? false : {}
+            resolve(trigger) === NO ? false : {}
           );
           let prevTrigger = {};
           effect(() => {

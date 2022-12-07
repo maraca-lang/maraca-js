@@ -1,16 +1,16 @@
 import contains from "../src/values/contains.js";
-import { ANY, NONE, GROUPS } from "../src/values/index.js";
+import { YES, NO, GROUPS } from "../src/values/index.js";
 
 test("contains: any", () => {
-  expect(contains(ANY, NONE)).toEqual({ needed: NONE });
-  expect(contains(ANY, 1)).toEqual({ needed: 1 });
-  expect(contains(ANY, GROUPS.STRING)).toEqual({ needed: GROUPS.STRING });
+  expect(contains(YES, NO)).toEqual({ needed: NO });
+  expect(contains(YES, 1)).toEqual({ needed: 1 });
+  expect(contains(YES, GROUPS.STRING)).toEqual({ needed: GROUPS.STRING });
 });
 
 test("contains: none", () => {
-  expect(contains(NONE, NONE)).toEqual({ needed: ANY });
-  expect(contains(NONE, 1)).toEqual(false);
-  expect(contains(NONE, GROUPS.STRING)).toEqual(false);
+  expect(contains(NO, NO)).toEqual({ needed: YES });
+  expect(contains(NO, 1)).toEqual(false);
+  expect(contains(NO, GROUPS.STRING)).toEqual(false);
 });
 
 test("contains: groups", () => {
@@ -20,7 +20,7 @@ test("contains: groups", () => {
   expect(contains(GROUPS.STRING, { __type: "regex", value: /a/ })).toEqual({
     needed: { __type: "regex", value: /a/ },
   });
-  expect(contains(GROUPS.STRING, ANY)).toEqual(false);
+  expect(contains(GROUPS.STRING, YES)).toEqual(false);
   expect(contains(GROUPS.NUMBER, GROUPS.STRING)).toEqual(false);
   expect(contains(GROUPS.NUMBER, GROUPS.INTEGER)).toEqual({
     needed: GROUPS.INTEGER,

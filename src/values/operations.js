@@ -1,19 +1,19 @@
 import combine from "./combine.js";
-import { ANY, NONE } from "./index.js";
+import { YES, NO } from "./index.js";
 
 const operators = {
   "|": (...args) => combine({ __type: "join", value: args }),
   "&": (...args) => combine({ __type: "meet", value: args }),
-  "=": (a, b) => (a === b ? ANY : NONE),
-  "!=": (a, b) => (a !== b ? ANY : NONE),
-  concat: (...args) => args.filter((x) => x !== NONE).join(""),
+  "=": (a, b) => (a === b ? YES : NO),
+  "!=": (a, b) => (a !== b ? YES : NO),
+  concat: (...args) => args.filter((x) => x !== NO).join(""),
 };
 
 const numericOperators = {
-  "<=": (a, b) => (a <= b ? ANY : NONE),
-  ">=": (a, b) => (a >= b ? ANY : NONE),
-  "<": (a, b) => (a < b ? ANY : NONE),
-  ">": (a, b) => (a > b ? ANY : NONE),
+  "<=": (a, b) => (a <= b ? YES : NO),
+  ">=": (a, b) => (a >= b ? YES : NO),
+  "<": (a, b) => (a < b ? YES : NO),
+  ">": (a, b) => (a > b ? YES : NO),
   "+": (a, b) => a + b,
   "-": (a, b) => a - b,
   "*": (a, b) => a * b,
@@ -32,5 +32,5 @@ export default (operation, values) => {
     }
     return numericOperators[operation](...values);
   }
-  return NONE;
+  return NO;
 };

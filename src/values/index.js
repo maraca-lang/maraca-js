@@ -4,8 +4,8 @@ import { atom } from "../streams.js";
 export { default as apply, applySingle } from "./apply";
 export { default as doOperation } from "./operations";
 
-export const ANY = true;
-export const NONE = false;
+export const YES = true;
+export const NO = false;
 export const GROUPS = {
   INTEGER: { __type: "group", value: "integer" },
   NUMBER: { __type: "group", value: "number" },
@@ -40,7 +40,7 @@ export const resolve = (x, deep = false, copyAtom = false) => {
           atom: atom(atomValue),
         };
       }
-      return contains(x.value, atomValue) ? atomValue : NONE;
+      return contains(x.value, atomValue) ? atomValue : NO;
     }
     if ((x.__type && x.__type !== "map") || !deep) return x;
     return Object.fromEntries(
