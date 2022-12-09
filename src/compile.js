@@ -92,15 +92,25 @@ const compile = (node, context, pushes = []) => {
       node.pairs.length === 0
         ? []
         : [
-            node.pairs.map(({ key, value, length, parameters }) => ({
-              key: compile(key, newContext),
-              value: parameters
-                ? (args) =>
-                    compile(value, { ...context, ...newContext, ...args })
-                : makeAtom(compile(value, newContext, pushes)),
-              length,
-              parameters,
-            })),
+            node.pairs.map(({ key, value, length, parameters }) => {
+              if (key === undefined) {
+                const v = makeAtom(compile(value, newContext, pushes));
+                return {
+                  key: derived(() => doOperation("!=", [v, NO])),
+                  value: v,
+                  length: 1,
+                };
+              }
+              return {
+                key: compile(key, newContext),
+                value: parameters
+                  ? (args) =>
+                      compile(value, { ...context, ...newContext, ...args })
+                  : makeAtom(compile(value, newContext, pushes)),
+                length,
+                parameters,
+              };
+            }),
           ];
     pushes.push(
       ...node.pushes.map((n) => {

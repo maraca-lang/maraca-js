@@ -1,29 +1,31 @@
 import ast from "./ast.js";
 
 const processAst = (node) => {
-  if (
-    node.type === "map" &&
-    node.block &&
-    !node.nodes.some(
-      (n) =>
-        n.type === "assign" &&
-        n.nodes[1].type === "keyword" &&
-        n.nodes[1].name === "yes"
-    )
-  ) {
-    return {
-      ...node,
-      nodes: [
-        ...node.nodes.map((n) => processAst(n)),
-        {
-          type: "assign",
-          nodes: [
-            { type: "keyword", name: "no" },
-            { type: "keyword", name: "yes" },
-          ],
-        },
-      ],
-    };
+  if (node.type === "map" && node.block) {
+    const nodes = node.nodes
+      .map((n) =>
+        n.type === "assign" || n.type === "push"
+          ? n
+          : { type: "assign", nodes: [n] }
+      )
+      .map((n) => processAst(n));
+    if (
+      !node.nodes.some(
+        (n) =>
+          n.type === "assign" &&
+          n.nodes[1].type === "keyword" &&
+          n.nodes[1].name === "yes"
+      )
+    ) {
+      nodes.push({
+        type: "assign",
+        nodes: [
+          { type: "keyword", name: "no" },
+          { type: "keyword", name: "yes" },
+        ],
+      });
+    }
+    return { ...node, nodes };
   } else if (node.type === "assign" && node.nodes.length > 2) {
     const [value, ...args] = node.nodes;
     return processAst(
@@ -45,8 +47,8 @@ const processAst = (node) => {
 };
 
 const getParameters = (node) => {
-  if (node.type === "parameter") return [node.name];
-  if (node.nodes) return node.nodes.flatMap((n) => getParameters(n));
+  if (node?.type === "parameter") return [node.name];
+  if (node?.nodes) return node.nodes.flatMap((n) => getParameters(n));
   return [];
 };
 const addParameters = (node) => {
@@ -62,7 +64,7 @@ const addParameters = (node) => {
 const captureNode = (node, context, capture) => {
   if (node.type === "map") {
     const varKeys = node.nodes
-      .filter((n) => n.type === "assign" && n.nodes[1].type === "value")
+      .filter((n) => n.type === "assign" && n.nodes[1]?.type === "value")
       .map((n) => n.nodes[1].value);
     const newContext = varKeys.reduce(
       (res, k) => ({ ...res, [k]: true }),
@@ -97,7 +99,7 @@ const captureNode = (node, context, capture) => {
       context
     );
     captureNode(node.nodes[0], newContext, capture);
-    captureNode(node.nodes[1], context, capture);
+    if (node.nodes[1]) captureNode(node.nodes[1], context, capture);
   } else if (node.nodes) {
     for (const n of node.nodes) captureNode(n, context, capture);
   } else if (node.type === "variable") {
@@ -110,7 +112,7 @@ const processNode = (node, processVar) => {
     const ordered = [];
     const processed = {};
     const values = node.nodes
-      .filter((n) => n.type === "assign" && n.nodes[1].type === "value")
+      .filter((n) => n.type === "assign" && n.nodes[1]?.type === "value")
       .reduce((res, n) => ({ ...res, [n.nodes[1].value]: n }), {});
     const newProcessVar = (name) => {
       if (!(name in processed)) {
@@ -131,7 +133,7 @@ const processNode = (node, processVar) => {
       values: ordered,
       items: nodes.filter((n) => n.type !== "assign" && n.type !== "push"),
       pairs: nodes
-        .filter((n) => n.type === "assign" && n.nodes[1].type !== "value")
+        .filter((n) => n.type === "assign" && n.nodes[1]?.type !== "value")
         .map(({ nodes: [value, key], length, parameters }) => ({
           key,
           value,

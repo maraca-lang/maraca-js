@@ -202,7 +202,7 @@ s.addAttribute("ast", {
   }),
 
   string: (_1, a, _2) =>
-    a.ast.length <= 1
+    a.ast.length === 0 || (a.ast.length === 1 && a.ast[0].type === "value")
       ? a.ast[0] || { type: "value", value: "" }
       : {
           type: "operation",
