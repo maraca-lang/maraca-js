@@ -50,7 +50,7 @@ const grammar = String.raw`Maraca {
     | atom
 
   atom
-    = map | block | string | number | keyword | parameter | variable | brackets
+    = map | block | content | string | number | keyword | parameter | variable | brackets
 
   map
     = "[" space* items space* "]"
@@ -73,16 +73,22 @@ const grammar = String.raw`Maraca {
   push
     = (value space* "?" space*)? value space* "->" space* value
 
+  content
+    = "\"" (map | block | cchunk)* "\""
+
   string
-    = "'" (svalue | chunk)* "'"
+    = "'" (block | schunk)* "'"
 
-  svalue
-    = "{" space* value space* "}"
+  cchunk
+    = (cchar | escape)+
 
-  chunk
-    = (char | escape)+
+  cchar
+    = ~("\"" | "\\" | "[" | "{") any
 
-  char
+  schunk
+    = (schar | escape)+
+
+  schar
     = ~("'" | "\\" | "{") any
 
   escape
@@ -201,6 +207,8 @@ s.addAttribute("ast", {
     nodes: [b.ast, c.ast, a.ast[0]].filter((x) => x),
   }),
 
+  content: (_1, a, _2) => ({ type: "map", nodes: a.ast }),
+
   string: (_1, a, _2) =>
     a.ast.length === 0 || (a.ast.length === 1 && a.ast[0].type === "value")
       ? a.ast[0] || { type: "value", value: "" }
@@ -210,14 +218,19 @@ s.addAttribute("ast", {
           nodes: a.ast,
         },
 
-  svalue: (_1, _2, a, _3, _4) => a.ast,
-
-  chunk: (a) => ({
+  cchunk: (a) => ({
     type: "value",
     value: a.sourceString.replace(/\\(.)/g, (_, a) => a),
   }),
 
-  char: (_) => null,
+  cchar: (_) => null,
+
+  schunk: (a) => ({
+    type: "value",
+    value: a.sourceString.replace(/\\(.)/g, (_, a) => a),
+  }),
+
+  schar: (_) => null,
 
   escape: (_1, _2) => null,
 
