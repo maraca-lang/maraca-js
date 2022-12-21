@@ -5,6 +5,7 @@ import {
   GROUPS,
   apply,
   doOperation,
+  map,
   resolve,
 } from "./values/index.js";
 
@@ -92,13 +93,12 @@ const compile = (node, context, pushes = []) => {
       node.pairs.length === 0
         ? []
         : [
-            node.pairs.map(({ key, value, length, parameters }) => {
+            node.pairs.map(({ key, value, parameters }) => {
               if (key === undefined) {
                 const v = makeAtom(compile(value, newContext, pushes));
                 return {
                   key: derived(() => doOperation("!=", [v, NO])),
                   value: v,
-                  length: 1,
                 };
               }
               return {
@@ -107,7 +107,6 @@ const compile = (node, context, pushes = []) => {
                   ? (args) =>
                       compile(value, { ...context, ...newContext, ...args })
                   : makeAtom(compile(value, newContext, pushes)),
-                length,
                 parameters,
               };
             }),
@@ -163,6 +162,7 @@ const compile = (node, context, pushes = []) => {
 
   if (node.type === "apply") {
     const [$map, $arg] = compiled;
+    if (node.map) return derived(() => map($arg, $map));
     return derived(() => apply($map, $arg));
   }
 

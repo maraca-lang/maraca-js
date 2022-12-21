@@ -45,7 +45,7 @@ const grammar = String.raw`Maraca {
     | apply
 
   apply
-    = apply space* ("." | ">>") space* atom -- apply
+    = apply space* (".." | ".") space* atom -- apply
     | apply atom -- pair
     | atom
 
@@ -163,8 +163,8 @@ s.addAttribute("ast", {
   unary: (a) => a.ast,
 
   apply_apply: (a, _1, b, _2, c) =>
-    b.sourceString === ">>"
-      ? { type: "apply", pipe: true, nodes: [c.ast, a.ast] }
+    b.sourceString === ".."
+      ? { type: "apply", map: true, nodes: [a.ast, c.ast] }
       : { type: "apply", nodes: [a.ast, c.ast] },
   apply_pair: (a, b) => ({ type: "apply", nodes: [a.ast, b.ast] }),
   apply: (a) => a.ast,
@@ -183,11 +183,8 @@ s.addAttribute("ast", {
     type: "assign",
     nodes: [
       b.ast[0] || { type: "keyword", name: "yes" },
-      ...(Array.isArray(a.ast[0])
-        ? a.ast[0]
-        : [a.ast[0] || { type: "keyword", name: "yes" }]),
+      a.ast[0] || { type: "keyword", name: "yes" },
     ],
-    length: Array.isArray(a.ast[0]) ? a.ast[0].length : 1,
   }),
 
   push: (a, _1, _2, _3, b, _4, _5, _6, c) => ({

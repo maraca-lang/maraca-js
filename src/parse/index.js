@@ -74,7 +74,6 @@ const captureNode = (node, context, capture) => {
             },
             { type: "value", value: name },
           ],
-          length: 1,
         });
       };
       for (const n of node.nodes) captureNode(n, newContext, newCapture);
@@ -121,10 +120,9 @@ const processNode = (node, processVar) => {
       items: nodes.filter((n) => n.type !== "assign" && n.type !== "push"),
       pairs: nodes
         .filter((n) => n.type === "assign" && n.nodes[1]?.type !== "value")
-        .map(({ nodes: [value, key], length, parameters }) => ({
+        .map(({ nodes: [value, key], parameters }) => ({
           key,
           value,
-          length,
           parameters,
         })),
       pushes: nodes.filter((n) => n.type === "push"),

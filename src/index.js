@@ -17,31 +17,6 @@ const merge = (source) => {
 };
 
 const standard = {
-  map: reactiveFunc((_input) => {
-    const [$data, $map] = resolve(_input).items;
-    const data = resolve($data);
-    if (Array.isArray(data)) {
-      return data.map((x, i) => apply($map, cleanValue([x, i + 1])));
-    }
-    const result = {
-      __type: "map",
-      values: Object.fromEntries(
-        Object.keys(data.values).map((k) => [
-          k,
-          apply($map, cleanValue([data.values[k], k])),
-        ])
-      ),
-      items: data.items.map((x, i) => apply($map, cleanValue([x, i + 1]))),
-      pairs: data.pairs.map((pairs) =>
-        pairs.map(({ key, value, parameters }) => ({
-          key,
-          value: apply($map, cleanValue([value, YES])),
-          parameters,
-        }))
-      ),
-    };
-    return result;
-  }),
   filter: reactiveFunc((_input) => {
     const [$data, $map] = resolve(_input).items;
     const data = resolve($data);

@@ -22,7 +22,7 @@ const cleanMap = (value) => {
   return NO;
 };
 
-const apply = ($map, $input, $args) => {
+const apply = ($map, $input) => {
   const map = cleanMap(resolve($map));
 
   if (typeof map === "function") {
@@ -46,17 +46,13 @@ const apply = ($map, $input, $args) => {
 
   if (map.pairs.length > 0) {
     const pairResults = map.pairs.map((pairs) => {
-      for (const { key: $key, value, length, parameters } of pairs) {
+      for (const { key: $key, value, parameters } of pairs) {
         const key = resolve($key);
         if (!parameters) {
           if (contains(key, input)) return value;
         } else {
-          const args = parameters.reduce(
-            (res, k) => ({ ...res, [k]: YES }),
-            {}
-          );
           const res = contains(key, input);
-          return value({ ...args, ...(res.context || {}) });
+          if (res) return value(res.context || {});
         }
       }
       return YES;
@@ -65,6 +61,31 @@ const apply = ($map, $input, $args) => {
   }
 
   return YES;
+};
+
+export const map = ($map, $data) => {
+  const data = resolve($data);
+  if (Array.isArray(data)) {
+    return data.map((x, i) => apply($map, cleanMap([x, i + 1])));
+  }
+  const result = {
+    __type: "map",
+    values: Object.fromEntries(
+      Object.keys(data.values).map((k) => [
+        k,
+        apply($map, cleanMap([data.values[k], k])),
+      ])
+    ),
+    items: data.items.map((x, i) => apply($map, cleanMap([x, i + 1]))),
+    pairs: data.pairs.map((pairs) =>
+      pairs.map(({ key, value, parameters }) => ({
+        key,
+        value: apply($map, cleanMap([value, YES])),
+        parameters,
+      }))
+    ),
+  };
+  return result;
 };
 
 export default apply;
