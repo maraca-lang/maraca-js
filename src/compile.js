@@ -162,8 +162,8 @@ const compile = (node, context, pushes = []) => {
   const compiled = node.nodes.map((n) => compile(n, context));
 
   if (node.type === "apply") {
-    const [$map, ...$args] = compiled;
-    return derived(() => apply($map, $args, node.complete));
+    const [$map, $arg] = compiled;
+    return derived(() => apply($map, $arg));
   }
 
   if (node.type === "operation") {

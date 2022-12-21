@@ -1,4 +1,4 @@
-import { applySingle } from "./apply.js";
+import apply from "./apply.js";
 import contains from "./contains.js";
 import { cleanValue, NO, GROUPS } from "./index.js";
 import { joinRanges, joinRangeValue, meetRanges } from "./range.js";
@@ -48,12 +48,17 @@ const meet = (_a, _b) => {
   }
 
   if (a.__type === "map" && b.__type === "map") {
-    const keys = Object.keys({ ...a.values, ...b.values });
-    const values = keys.map((k) => meet(applySingle(a, k), applySingle(b, k)));
     return {
       __type: "map",
-      values: Object.fromEntries(keys.map((k, i) => [k, values[i]])),
-      items: [...a.items, ...b.items],
+      values: Object.fromEntries(
+        Object.keys({ ...a.values, ...b.values }).map((k) => [
+          k,
+          meet(apply(a, k), apply(b, k)),
+        ])
+      ),
+      items: Array.from({
+        length: Math.max(a.items.length, b.items.length),
+      }).map((_, i) => meet(apply(a, i + 1), apply(b, i + 1))),
       pairs: [...a.pairs, ...b.pairs],
     };
   }

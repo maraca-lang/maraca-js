@@ -1,7 +1,7 @@
 import contains from "./contains.js";
 import { atom } from "../streams.js";
 
-export { default as apply, applySingle } from "./apply";
+export { default as apply } from "./apply";
 export { default as doOperation } from "./operations";
 
 export const YES = true;

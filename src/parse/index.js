@@ -26,19 +26,6 @@ const processAst = (node) => {
       });
     }
     return { ...node, nodes };
-  } else if (node.type === "assign" && node.nodes.length > 2) {
-    const [value, ...args] = node.nodes;
-    return processAst(
-      args.reduceRight(
-        (res, key, i) => ({
-          type: "map",
-          nodes: [
-            { type: "assign", nodes: [res, key], length: args.length - i },
-          ],
-        }),
-        value
-      ).nodes[0]
-    );
   } else if (node.nodes) {
     return { ...node, nodes: node.nodes.map((n) => processAst(n)) };
   } else {

@@ -1,4 +1,4 @@
-import { applySingle } from "./apply.js";
+import apply from "./apply.js";
 import { cleanValue, YES, NO, GROUPS } from "./index.js";
 import { rangeIncludesValue, rangeIncludesRange } from "./range.js";
 
@@ -100,18 +100,20 @@ const contains = (_outer, _inner) => {
   }
 
   if (inner.__type === "map") {
-    if (outer.items.length > 0 || outer.pairs.length > 0) return false;
+    if (outer.pairs.length > 0) return false;
     const keys = [
       ...new Set([
-        ...Object.keys({ ...outer.values, ...inner.values }),
+        ...Object.keys(outer.values),
+        ...Object.keys(inner.values),
+        ...Object.keys(outer.items).map((k) => `${parseInt(k, 10) + 1}`),
         ...Object.keys(inner.items).map((k) => `${parseInt(k, 10) + 1}`),
       ]),
     ];
     const needed = { __type: "map", values: {}, items: [], pairs: [] };
     let context = {};
     for (const k of keys) {
-      const a = applySingle(outer, k);
-      const b = applySingle(inner, k);
+      const a = apply(outer, k);
+      const b = apply(inner, k);
       const res = contains(a, b);
       if (!res) return false;
       if (res.needed !== YES) {

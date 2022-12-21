@@ -46,14 +46,14 @@ const grammar = String.raw`Maraca {
 
   apply
     = apply space* ("." | ">>") space* atom -- apply
-    | apply arguments -- brackets
+    | apply atom -- pair
     | atom
 
   atom
-    = map | block | content | string | number | keyword | parameter | variable | brackets
+    = map | block | content | string | number | keyword | parameter | variable
 
   map
-    = "[" space* items space* "]"
+    = "(" space* items space* ")"
 
   block
     = "{" space* items space* "}"
@@ -62,10 +62,7 @@ const grammar = String.raw`Maraca {
     = listOf<(assign | push | value), itemsinner> space* ","?
 
   assign
-    = (arguments | value)? space* ":" space* (push | value)?
-
-  arguments
-    = "(" space* listOf<value, itemsinner> space* ","? space* ")"
+    = value? space* ":" space* (push | value)?
 
   itemsinner
     = space* "," space*
@@ -74,7 +71,7 @@ const grammar = String.raw`Maraca {
     = (value space* "?" space*)? value space* "->" space* value
 
   content
-    = "\"" (map | block | cchunk)* "\""
+    = "\"" (block | cchunk)* "\""
 
   string
     = "'" (block | schunk)* "'"
@@ -83,7 +80,7 @@ const grammar = String.raw`Maraca {
     = (cchar | escape)+
 
   cchar
-    = ~("\"" | "\\" | "[" | "{") any
+    = ~("\"" | "\\" | "{") any
 
   schunk
     = (schar | escape)+
@@ -105,9 +102,6 @@ const grammar = String.raw`Maraca {
 
   variable
     = alnum+
-
-  brackets
-    = "(" space* value space* ")"
 }`;
 
 const g = ohm.grammar(grammar);
@@ -172,11 +166,7 @@ s.addAttribute("ast", {
     b.sourceString === ">>"
       ? { type: "apply", pipe: true, nodes: [c.ast, a.ast] }
       : { type: "apply", nodes: [a.ast, c.ast] },
-  apply_brackets: (a, b) => ({
-    type: "apply",
-    complete: true,
-    nodes: [a.ast, ...b.ast],
-  }),
+  apply_pair: (a, b) => ({ type: "apply", nodes: [a.ast, b.ast] }),
   apply: (a) => a.ast,
 
   atom: (a) => a.ast,
@@ -199,8 +189,6 @@ s.addAttribute("ast", {
     ],
     length: Array.isArray(a.ast[0]) ? a.ast[0].length : 1,
   }),
-
-  arguments: (_1, _2, a, _3, _4, _5, _6) => a.ast,
 
   push: (a, _1, _2, _3, b, _4, _5, _6, c) => ({
     type: "push",
@@ -244,8 +232,6 @@ s.addAttribute("ast", {
   parameter: (_1, a) => ({ type: "parameter", name: a.sourceString }),
 
   variable: (a) => ({ type: "variable", name: a.sourceString }),
-
-  brackets: (_1, _2, a, _3, _4) => a.ast,
 
   listOf: (a) => a.ast,
   nonemptyListOf: (a, _1, b) => [a.ast, ...b.ast],
