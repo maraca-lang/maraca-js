@@ -66,6 +66,7 @@ const grammar = String.raw`Maraca {
 
   itemsinner
     = space* "," space*
+    | (spacenonl* "\n")+ spacenonl*
 
   push
     = (value space* "?" space*)? value space* "->" space* value
@@ -102,6 +103,12 @@ const grammar = String.raw`Maraca {
 
   variable
     = alnum+
+
+  newline
+    = spacenonl* "\n" spacenonl*
+
+  spacenonl
+    = ~"\n" "\x00".."\x20"
 }`;
 
 const g = ohm.grammar(grammar);
@@ -229,6 +236,10 @@ s.addAttribute("ast", {
   parameter: (_1, a) => ({ type: "parameter", name: a.sourceString }),
 
   variable: (a) => ({ type: "variable", name: a.sourceString }),
+
+  newline: (_1, _2, _3) => null,
+
+  spacenonl: (_) => null,
 
   listOf: (a) => a.ast,
   nonemptyListOf: (a, _1, b) => [a.ast, ...b.ast],
