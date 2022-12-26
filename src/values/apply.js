@@ -66,6 +66,7 @@ const apply = ($map, $input) => {
 
 export const map = ($map, $data) => {
   const data = resolve($data);
+  if (!data) return data;
   if (Array.isArray(data)) {
     return data.map((x, i) => apply($map, cleanMap([x, i + 1])));
   }
