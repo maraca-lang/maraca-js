@@ -1,9 +1,10 @@
 import combine from "./combine.js";
 import contains from "./contains.js";
-import { YES, NO, resolve } from "./index.js";
+import { ANY, YES, NO, resolve } from "./index.js";
 
 const cleanMap = (value) => {
   if (
+    value === ANY ||
     value === YES ||
     value === NO ||
     typeof value === "number" ||
@@ -31,7 +32,7 @@ const apply = ($map, $input) => {
 
   const input = resolve($input);
 
-  if (map?.__type !== "map") return contains(map, input) ? YES : NO;
+  if (map?.__type !== "map") return contains(map, input) ? ANY : NO;
 
   if (Number.isInteger(input) && input - 1 in map.items) {
     return map.items[input - 1];
@@ -55,12 +56,12 @@ const apply = ($map, $input) => {
           if (res) return value(res.context || {});
         }
       }
-      return YES;
+      return ANY;
     });
     return combine({ __type: "meet", value: pairResults });
   }
 
-  return YES;
+  return ANY;
 };
 
 export const map = ($map, $data) => {
@@ -80,7 +81,7 @@ export const map = ($map, $data) => {
     pairs: data.pairs.map((pairs) =>
       pairs.map(({ key, value, parameters }) => ({
         key,
-        value: apply($map, cleanMap([value, YES])),
+        value: apply($map, cleanMap([value, ANY])),
         parameters,
       }))
     ),

@@ -14,14 +14,14 @@ const processAst = (node) => {
         (n) =>
           n.type === "assign" &&
           n.nodes[1].type === "keyword" &&
-          n.nodes[1].name === "yes"
+          n.nodes[1].name === "any"
       )
     ) {
       nodes.push({
         type: "assign",
         nodes: [
           { type: "keyword", name: "no" },
-          { type: "keyword", name: "yes" },
+          { type: "keyword", name: "any" },
         ],
       });
     }
@@ -69,7 +69,7 @@ const captureNode = (node, context, capture) => {
               type: "push",
               nodes: [
                 { type: "keyword", name: "no" },
-                { type: "keyword", name: "yes" },
+                { type: "keyword", name: "any" },
               ],
             },
             { type: "value", value: name },

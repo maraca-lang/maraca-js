@@ -96,7 +96,7 @@ const grammar = String.raw`Maraca {
     = digit+ ("." digit+)?
 
   keyword
-    = "yes" | "no" | "string" | "number" | "integer"
+    = "any" | "yes" | "no" | "string" | "number" | "integer"
 
   parameter
     = "*" variable
@@ -189,8 +189,8 @@ s.addAttribute("ast", {
   assign: (a, _1, _2, _3, b) => ({
     type: "assign",
     nodes: [
-      b.ast[0] || { type: "keyword", name: "yes" },
-      a.ast[0] || { type: "keyword", name: "yes" },
+      b.ast[0] || { type: "keyword", name: "any" },
+      a.ast[0] || { type: "keyword", name: "any" },
     ],
   }),
 

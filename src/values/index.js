@@ -4,6 +4,7 @@ import { atom } from "../streams.js";
 export { default as apply, map } from "./apply";
 export { default as doOperation } from "./operations";
 
+export const ANY = undefined;
 export const YES = true;
 export const NO = false;
 export const GROUPS = {

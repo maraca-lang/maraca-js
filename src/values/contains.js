@@ -1,5 +1,5 @@
 import apply from "./apply.js";
-import { cleanValue, YES, NO, GROUPS } from "./index.js";
+import { cleanValue, ANY, NO, GROUPS } from "./index.js";
 import { rangeIncludesValue, rangeIncludesRange } from "./range.js";
 
 const isValue = (a) => typeof a === "number" || typeof a === "string";
@@ -9,10 +9,10 @@ const contains = (_outer, _inner) => {
   const inner = cleanValue(_inner);
 
   if (outer?.__type === "parameter") {
-    const res = contains(outer.value || YES, inner);
+    const res = contains(outer.value || ANY, inner);
     if (!res) return false;
     return {
-      needed: YES,
+      needed: ANY,
       context: {
         ...(res.context || {}),
         [outer.name]: res.needed,
@@ -20,10 +20,10 @@ const contains = (_outer, _inner) => {
     };
   }
 
-  if (inner === outer) return { needed: YES };
+  if (inner === outer) return { needed: ANY };
 
-  if (outer === YES || inner === NO) return { needed: inner };
-  if (outer === NO || inner === YES) return false;
+  if (outer === ANY || inner === NO) return { needed: inner };
+  if (outer === NO || inner === ANY) return false;
 
   if (outer?.__type === "join") {
     let context = false;
@@ -32,8 +32,8 @@ const contains = (_outer, _inner) => {
       if (res) context = { ...(context || {}), ...(res.context || {}) };
     }
     return context && Object.keys(context).length > 0
-      ? { needed: YES, context }
-      : { needed: YES };
+      ? { needed: ANY, context }
+      : { needed: ANY };
   }
   if (outer?.__type === "meet") {
     let context = {};
@@ -42,13 +42,13 @@ const contains = (_outer, _inner) => {
       context = context && context && { ...context, ...(res.context || {}) };
     }
     return context && Object.keys(context).length > 0
-      ? { needed: YES, context }
-      : { needed: YES };
+      ? { needed: ANY, context }
+      : { needed: ANY };
   }
 
   if (isValue(inner)) {
     if (isValue(outer)) {
-      return inner === outer && { needed: YES };
+      return inner === outer && { needed: ANY };
     }
     if (outer.__type === "group") {
       if (outer === GROUPS.INTEGER) {
@@ -92,7 +92,7 @@ const contains = (_outer, _inner) => {
   if (inner.__type !== outer.__type) return false;
 
   if (inner.__type === "regex") {
-    return inner.value.toString() === outer.value.toString() && { needed: YES };
+    return inner.value.toString() === outer.value.toString() && { needed: ANY };
   }
 
   if (inner.__type === "range") {
@@ -116,7 +116,7 @@ const contains = (_outer, _inner) => {
       const b = apply(inner, k);
       const res = contains(a, b);
       if (!res) return false;
-      if (res.needed !== YES) {
+      if (res.needed !== ANY) {
         if (/\d+/.test(k)) needed.items[parseInt(k, 10) - 1] = b;
         else needed.values[k] = b;
       }

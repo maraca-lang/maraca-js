@@ -1,5 +1,6 @@
 import { atom, derived, effect } from "./streams.js";
 import {
+  ANY,
   YES,
   NO,
   GROUPS,
@@ -41,6 +42,7 @@ const compile = (node, context, pushes = []) => {
 
   if (node.type === "keyword") {
     return {
+      any: ANY,
       yes: YES,
       no: NO,
       string: GROUPS.STRING,

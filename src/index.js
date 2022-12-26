@@ -1,9 +1,9 @@
 import compile from "./compile.js";
-import { apply, cleanValue, resolve, YES } from "./values/index.js";
+import { apply, cleanValue, resolve, ANY } from "./values/index.js";
 import parse from "./parse/index.js";
 import run from "./streams.js";
 
-export { YES, NO, resolve } from "./values/index.js";
+export { ANY, YES, NO, resolve } from "./values/index.js";
 export { atom, derived, effect } from "./streams.js";
 
 export const reactiveFunc = (func) =>
@@ -37,7 +37,7 @@ const standard = {
       ),
       pairs: data.pairs.map((pairs) =>
         pairs.filter(
-          ({ value }) => resolve(apply($map, cleanValue([value, YES]))) !== NO
+          ({ value }) => resolve(apply($map, cleanValue([value, ANY]))) !== NO
         )
       ),
     };

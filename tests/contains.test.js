@@ -1,14 +1,14 @@
 import contains from "../src/values/contains.js";
-import { YES, NO, GROUPS } from "../src/values/index.js";
+import { ANY, NO, GROUPS } from "../src/values/index.js";
 
 test("contains: any", () => {
-  expect(contains(YES, NO)).toEqual({ needed: NO });
-  expect(contains(YES, 1)).toEqual({ needed: 1 });
-  expect(contains(YES, GROUPS.STRING)).toEqual({ needed: GROUPS.STRING });
+  expect(contains(ANY, NO)).toEqual({ needed: NO });
+  expect(contains(ANY, 1)).toEqual({ needed: 1 });
+  expect(contains(ANY, GROUPS.STRING)).toEqual({ needed: GROUPS.STRING });
 });
 
 test("contains: none", () => {
-  expect(contains(NO, NO)).toEqual({ needed: YES });
+  expect(contains(NO, NO)).toEqual({ needed: ANY });
   expect(contains(NO, 1)).toEqual(false);
   expect(contains(NO, GROUPS.STRING)).toEqual(false);
 });
@@ -20,7 +20,7 @@ test("contains: groups", () => {
   expect(contains(GROUPS.STRING, { __type: "regex", value: /a/ })).toEqual({
     needed: { __type: "regex", value: /a/ },
   });
-  expect(contains(GROUPS.STRING, YES)).toEqual(false);
+  expect(contains(GROUPS.STRING, ANY)).toEqual(false);
   expect(contains(GROUPS.NUMBER, GROUPS.STRING)).toEqual(false);
   expect(contains(GROUPS.NUMBER, GROUPS.INTEGER)).toEqual({
     needed: GROUPS.INTEGER,
