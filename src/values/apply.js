@@ -14,11 +14,21 @@ const cleanMap = (value) => {
     return value;
   }
   if (Array.isArray(value)) {
-    return { __type: "map", values: {}, items: value, pairs: [] };
+    return {
+      __type: "map",
+      values: {},
+      items: value,
+      pairs: [[{ key: ANY, value: NO }]],
+    };
   }
   if (typeof value === "object") {
     if (value.__type) return value;
-    return { __type: "map", values: value, items: [], pairs: [] };
+    return {
+      __type: "map",
+      values: value,
+      items: [],
+      pairs: [[{ key: ANY, value: NO }]],
+    };
   }
   return NO;
 };

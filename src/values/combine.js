@@ -1,13 +1,13 @@
 import apply from "./apply.js";
 import contains from "./contains.js";
-import { cleanValue, NO, GROUPS } from "./index.js";
+import { cleanValue, NO, GROUPS, resolve } from "./index.js";
 import { joinRanges, joinRangeValue, meetRanges } from "./range.js";
 
 const join = (_a, _b) => {
+  if (_a?.isStream || _b?.isStream) throw new Error();
+
   const a = cleanValue(_a);
   const b = cleanValue(_b);
-
-  if (a?.isStream || b?.isStream) return null;
 
   if (contains(a, b)) return a;
   if (contains(b, a)) return b;
@@ -28,10 +28,10 @@ const join = (_a, _b) => {
 };
 
 const meet = (_a, _b) => {
+  if (_a?.isStream || _b?.isStream) throw new Error();
+
   const a = cleanValue(_a);
   const b = cleanValue(_b);
-
-  if (a?.isStream || b?.isStream) return null;
 
   if (contains(a, b)) return b;
   if (contains(b, a)) return a;
@@ -53,12 +53,14 @@ const meet = (_a, _b) => {
       values: Object.fromEntries(
         Object.keys({ ...a.values, ...b.values }).map((k) => [
           k,
-          meet(apply(a, k), apply(b, k)),
+          meet(resolve(apply(a, k)), resolve(apply(b, k))),
         ])
       ),
       items: Array.from({
         length: Math.max(a.items.length, b.items.length),
-      }).map((_, i) => meet(apply(a, i + 1), apply(b, i + 1))),
+      }).map((_, i) =>
+        meet(resolve(apply(a, i + 1)), resolve(apply(b, i + 1)))
+      ),
       pairs: [...a.pairs, ...b.pairs],
     };
   }
@@ -102,6 +104,8 @@ const combine = ({ __type, value }) => {
       }),
     };
   }
+
+  if (value.length === 1) return value[0];
 
   const other = __type === "meet" ? "join" : "meet";
   const maps = __type === "meet" ? [meet, join] : [join, meet];

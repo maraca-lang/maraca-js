@@ -29,6 +29,8 @@ export default (operation, values) => {
   if (values.every((a) => typeof a === "number")) {
     if (operation === "-" && values.length === 1) {
       return -values[0];
+    } else if (operation === "!" && values.length === 1) {
+      return values[0] === NO ? YES : NO;
     }
     return numericOperators[operation](...values);
   }

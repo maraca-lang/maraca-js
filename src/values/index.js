@@ -16,10 +16,20 @@ export const GROUPS = {
 export const cleanValue = (x) => {
   if (!x) return x;
   if (Array.isArray(x)) {
-    return { __type: "map", values: {}, items: x, pairs: [] };
+    return {
+      __type: "map",
+      values: {},
+      items: x,
+      pairs: [[{ key: ANY, value: NO }]],
+    };
   }
   if (typeof x === "object" && !x.__type) {
-    return { __type: "map", values: x, items: [], pairs: [] };
+    return {
+      __type: "map",
+      values: x,
+      items: [],
+      pairs: [[{ key: ANY, value: NO }]],
+    };
   }
   return x;
 };
