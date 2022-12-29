@@ -1,188 +1,105 @@
-import { atom, derived, effect } from "./streams.js";
-import {
-  ANY,
-  YES,
-  NO,
-  GROUPS,
-  apply,
-  doOperation,
-  map,
-  resolve,
-} from "./values/index.js";
+import parse from "./parse.js";
 
-const makeAtom = (value) => {
-  if (
-    value === NO ||
-    typeof value === "number" ||
-    typeof value === "string" ||
-    Array.isArray(value) ||
-    (typeof value === "object" && value && !value.__type) ||
-    value?.isStream ||
-    value?.__type === "atom" ||
-    value?.__type === "parameter" ||
-    (value?.__type === "map" &&
-      (Object.keys(value.values).length > 0 ||
-        value.items.length > 0 ||
-        value.pairs.length > 0))
-  ) {
-    return value;
-  }
-  return { __type: "atom", value, atom: atom(value) };
+const getParameters = (pattern) => {
+  if (pattern.type === "label") return [pattern.value];
+  if (pattern.nodes) return pattern.nodes.flatMap((n) => getParameters(n));
+  return [];
 };
 
-const resolveToAtom = (x) => {
-  if (typeof x === "object" && x.isStream) return resolveToAtom(x.get());
-  return x;
+const captureNode = (node, context, capture) => {
+  if (node.type === "block" || node.type === "multi") {
+    const keys = node.nodes
+      .filter((n) => n.type === "assign")
+      .map((n) => getParameters(n.pattern));
+    const newContext = keys.reduce(
+      (res, k) => ({ ...res, [k]: true }),
+      context
+    );
+    if (node.type === "multi") {
+      for (const n of node.nodes) captureNode(n, newContext, capture);
+    } else if (!capture) {
+      const newCapture = (name) => {
+        newContext[name] = true;
+        node.nodes.push({
+          type: "assign",
+          pattern: {
+            type: "is",
+            nodes: [
+              { type: "label", value: name },
+              { type: "type", value: "any" },
+            ],
+          },
+          nodes: [{ type: "value", value: false }],
+        });
+      };
+      for (const n of node.nodes) captureNode(n, newContext, newCapture);
+      for (const n of node.nodes) captureNode(n, newContext);
+    }
+  } else if (node.type === "for" || node.type === "function") {
+    const parameters = [
+      ...new Set(node.patterns.flatMap((p) => getParameters(p))),
+    ];
+    const newContext = parameters.reduce(
+      (res, k) => ({ ...res, [k]: true }),
+      context
+    );
+    for (const n of node.nodes) captureNode(n, newContext, capture);
+  } else if (node.nodes) {
+    for (const n of node.nodes) captureNode(n, context, capture);
+  } else if (node.type === "label") {
+    if (!(node.value in context)) capture(node.value);
+  }
 };
 
-const compile = (node, context, pushes = []) => {
-  if (node.type === "value") {
-    return node.value;
-  }
-
-  if (node.type === "keyword") {
-    return {
-      any: ANY,
-      yes: YES,
-      no: NO,
-      string: GROUPS.STRING,
-      number: GROUPS.NUMBER,
-      integer: GROUPS.INTEGER,
-    }[node.name];
-  }
-
-  if (node.type === "variable") {
-    return context[node.name];
-  }
-
-  if (node.type === "parameter") {
-    return { __type: "parameter", name: node.name };
-  }
-
-  if (node.type === "push") {
-    const [source, target, trigger] = node.nodes;
-    const result = makeAtom(compile(target, context));
-    pushes.push({ source, target: result, trigger, first: true });
-    return result;
-  }
-
-  if (node.type === "map") {
-    if (node.block) {
-      return compile(
-        {
-          type: "apply",
-          nodes: [
-            { ...node, block: false },
-            { type: "value", value: YES },
-          ],
-        },
-        context
-      );
-    }
-
-    const newContext = { ...context };
-    const values = {};
-    const pushes = [];
-    for (const { key, value } of node.values) {
-      const result = makeAtom(compile(value, newContext, pushes));
-      newContext[key] = result;
-      values[key] = result;
-    }
-    const items = node.items.map((n) =>
-      makeAtom(compile(n, newContext, pushes))
-    );
-    const pairs =
-      node.pairs.length === 0
-        ? []
-        : [
-            node.pairs.map(({ key, value, parameters }) => {
-              if (key === undefined) {
-                const v = makeAtom(compile(value, newContext, pushes));
-                return {
-                  key: derived(() => doOperation("!=", [v, NO])),
-                  value: v,
-                };
-              }
-              return {
-                key: compile(key, newContext),
-                value: parameters
-                  ? (args) =>
-                      compile(value, { ...context, ...newContext, ...args })
-                  : makeAtom(compile(value, newContext, pushes)),
-                parameters,
-              };
-            }),
-          ];
-    pushes.push(
-      ...node.pushes.map((n) => {
-        const [source, target, trigger] = n.nodes;
-        return { source, target: compile(target, newContext), trigger };
-      })
-    );
-
-    if (pushes.length === 0) {
-      return { __type: "map", values, items, pairs };
-    }
-
-    return derived(() => {
-      for (const push of pushes) {
-        let skipFirst = !push.first;
-        const source = compile(push.source, newContext);
-        if (push.trigger) {
-          const trigger = compile(push.trigger, newContext);
-          const triggerStream = derived(() =>
-            resolve(trigger) === NO ? false : {}
-          );
-          let prevTrigger = {};
-          effect(() => {
-            const tar = resolveToAtom(push.target);
-            if (tar.__type === "atom") {
-              const nextTrigger = resolve(triggerStream);
-              if (nextTrigger && nextTrigger !== prevTrigger) {
-                prevTrigger = nextTrigger;
-                if (!skipFirst) tar.atom.set(resolve(source, true, true));
-              }
-            }
-            skipFirst = false;
-          });
+const orderValues = (node, processVar) => {
+  if (node.type === "block" || node.type === "multi") {
+    const ordered = [];
+    const processed = {};
+    const values = node.nodes
+      .filter((n) => n.type === "assign")
+      .map((n) => ({
+        parameters: [...new Set(getParameters(n.pattern))],
+        node: n,
+      }));
+    const newProcessVar = (name) => {
+      if (!(name in processed)) {
+        processed[name] = true;
+        const v = values.find((v) => v.parameters.includes(name));
+        if (v && !v.processed) {
+          v.processed = true;
+          orderValues(v.node, newProcessVar);
+          ordered.push(v.node);
         } else {
-          effect(() => {
-            const tar = resolveToAtom(push.target);
-            if (tar.__type === "atom") {
-              const res = resolve(source, true, true);
-              if (!skipFirst) tar.atom.set(res);
-            }
-            skipFirst = false;
-          });
+          processVar(name);
         }
       }
-      return { __type: "map", values, items, pairs };
-    });
-  }
-
-  const compiled = node.nodes.map((n) => compile(n, context));
-
-  if (node.type === "apply") {
-    const [$map, $arg] = compiled;
-    if (node.map) return derived(() => map($arg, $map));
-    return derived(() => apply($map, $arg));
-  }
-
-  if (node.type === "operation") {
-    if (
-      compiled.every(
-        (x) => !x?.isStream && x?.__type !== "map" && x?.__type !== "atom"
-      )
-    ) {
-      return doOperation(node.operation, compiled);
+    };
+    for (const { parameters } of values) {
+      for (const name of parameters) newProcessVar(name);
     }
-    return derived(() =>
-      doOperation(
-        node.operation,
-        compiled.map((x) => resolve(x))
-      )
+    ordered.push(
+      ...node.nodes
+        .filter((n) => n.type === "assign" && n.pattern.type === "is")
+        .map((n) => ({
+          type: "push",
+          first: true,
+          key: n.pattern.nodes[0],
+          nodes: [n.nodes[0]],
+        }))
     );
+    ordered.push(...node.nodes.filter((n) => n.type !== "assign"));
+    node.nodes = ordered;
+  } else if (node.nodes) {
+    for (const n of node.nodes) orderValues(n, processVar);
+  } else if (node.type === "label") {
+    processVar(node.value);
   }
 };
 
-export default compile;
+export default (script, library) => {
+  const result = parse(script);
+  captureNode(result, library);
+  orderValues(result, () => {});
+  // console.log(JSON.stringify(result, null, 2));
+  return result;
+};

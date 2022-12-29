@@ -39,20 +39,23 @@ class SourceStream {
   isStream = true;
 
   value;
+  test;
 
   observedBy = new Set();
 
-  constructor(value) {
+  constructor(value, test) {
     this.value = value;
+    this.test = test;
   }
 
   set(value) {
+    if (this.test && !this.test(value)) throw new Error();
     if (!sourceUpdated.has(this)) {
       const first = sourceUpdated.size === 0;
       sourceUpdated.add(this);
       this.value = value;
       for (const s of this.observedBy) s.stale();
-      if (first) runNext();
+      if (first) setTimeout(() => runNext());
     }
   }
   update(map) {
@@ -149,7 +152,7 @@ class Stream {
   }
 }
 
-export const atom = (initial) => new SourceStream(initial);
+export const atom = (initial, test) => new SourceStream(initial, test);
 export const derived = (run, debug = "") => new Stream(run, false, debug);
 export const effect = (run, debug = "") => new Stream(run, true, debug).get();
 
