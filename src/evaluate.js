@@ -1,5 +1,6 @@
 import { resolveDeep, resolveToMulti, resolveToSingle } from "./resolve.js";
-import { atom, derived, effect } from "./streams.js";
+import { derived, effect } from "./streams.js";
+import { getParameters } from "./types.js";
 
 export const unary = {
   "!": (a) => !a,
@@ -7,8 +8,8 @@ export const unary = {
   "...": (a) => ({ __type: "multi", value: a.items }),
 };
 export const binary = {
-  "|": (a, b) => a || b,
-  "&": (a, b) => a && b,
+  "|": (a, b) => (a || b ? true : false),
+  "&": (a, b) => (a && b ? true : false),
   "=": (a, b) => a === b,
   "!=": (a, b) => a !== b,
   concat: (...args) => args.filter((x) => x).join(""),
@@ -22,48 +23,6 @@ export const binary = {
   "/": (a, b) => a / b,
   "%": (a, b) => ((((a - 1) % b) + b) % b) + 1,
   "^": (a, b) => a ** b,
-};
-
-const runTest = (test, value) => {
-  if (test.type === "block") {
-    if (value.__type !== "block") return false;
-    if (Object.keys(value.values).length !== 0) return false;
-    return value.items.every((v) => runTest(test.value, v));
-  }
-  if (test.type === "or") {
-    return test.nodes.some((p) => runTest(p, value));
-  }
-  if (test.type === "and") {
-    return test.nodes.every((p) => runTest(p, value));
-  }
-  if (test.type === "type") {
-    if (test.value === "any") return true;
-    if (test.value === "string") return typeof value === "string";
-    if (test.value === "number") return typeof value === "number";
-    if (test.value === "integer") return Number.isInteger(value);
-    if (test.value === "maybe") return typeof value === "boolean";
-  }
-  if (test.type === "compare") {
-    return operation[test.operation](value, test.value);
-  }
-};
-const getParameters = (pattern, $value, wrapAtom = false) => {
-  if (pattern.type === "label") {
-    return { [pattern.value]: $value };
-  }
-  if (pattern.type === "is") {
-    const [label, test] = pattern.nodes;
-    const value = resolveDeep($value);
-    if (!runTest(test, value)) return false;
-    if (!wrapAtom) return { [label.value]: $value };
-    return {
-      [label.value]: {
-        __type: "atom",
-        value: atom(value, (v) => runTest(test, v)),
-      },
-    };
-  }
-  return runTest(pattern, resolveDeep($value)) && {};
 };
 
 const evaluateBlock = (nodes, context) => {

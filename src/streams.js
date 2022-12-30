@@ -10,7 +10,7 @@ const withCurrent = (s, func) => {
   return result;
 };
 
-const sourceUpdated = new Set();
+const sourceQueue = new Map();
 const effectTraced = new Set();
 const queue = new Set();
 const runNext = () => {
@@ -29,7 +29,6 @@ const runNext = () => {
     next.update();
     runNext();
   } else {
-    sourceUpdated.clear();
     for (const s of effectTraced) s.traceCount = 0;
     effectTraced.clear();
   }
@@ -39,23 +38,27 @@ class SourceStream {
   isStream = true;
 
   value;
-  test;
+  process;
 
   observedBy = new Set();
 
-  constructor(value, test) {
-    this.value = value;
-    this.test = test;
+  constructor(value, process) {
+    this.value = process ? process(value) : value;
+    this.process = process;
   }
 
   set(value) {
-    if (this.test && !this.test(value)) throw new Error();
-    if (!sourceUpdated.has(this)) {
-      const first = sourceUpdated.size === 0;
-      sourceUpdated.add(this);
-      this.value = value;
-      for (const s of this.observedBy) s.stale();
-      if (first) setTimeout(() => runNext());
+    const first = sourceQueue.size === 0;
+    sourceQueue.set(this, this.process ? this.process(value) : value);
+    if (first) {
+      setTimeout(() => {
+        for (const [s, v] of sourceQueue.entries()) {
+          s.value = v;
+          for (const x of s.observedBy) x.stale();
+        }
+        sourceQueue.clear();
+        runNext();
+      });
     }
   }
   update(map) {
@@ -152,7 +155,7 @@ class Stream {
   }
 }
 
-export const atom = (initial, test) => new SourceStream(initial, test);
+export const atom = (initial, process) => new SourceStream(initial, process);
 export const derived = (run, debug = "") => new Stream(run, false, debug);
 export const effect = (run, debug = "") => new Stream(run, true, debug).get();
 

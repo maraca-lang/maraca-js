@@ -80,22 +80,33 @@ const grammar = String.raw`Maraca {
     = listOf<value, separator> space* ","?
 
   pattern
-    = label space* "is" space* p_or -- is
-    | (p_or | label)
+    = label space* "is" space* t_or -- is
+    | (t_or | label)
 
-  p_or
-    = p_or space* "|" space* p_and -- or
-    | p_and
+  t_or
+    = t_or space* "|" space* t_and -- or
+    | t_and
 
-  p_and
-    = p_and space* "&" space* test -- and
+  t_and
+    = t_and space* "&" space* test -- and
     | test
 
   test
-    = "[" space* pattern space* "]" -- block
-    | ("any" | "string" | "number" | "integer" | "maybe") -- type
+    = ("any" | "string" | "number" | "integer" | "maybe") -- type
     | ("!=" | "=" | "<=" | ">=" | "<" | ">") value -- compare
     | "(" space* pattern space* ")" -- brackets
+    | t_block -- block
+
+  t_block
+    = "[" space* t_values (space* "~" space* pattern)? space* "]" -- both
+    | "[" space* t_values space* "]" -- values
+    | "[" space* pattern space* "]" -- items
+
+  t_values
+    = listOf<t_assign, separator> space* ","?
+
+  t_assign
+    = label space* ":" space* pattern
 
   content
     = "\"" (multi | c_chunk)* "\""
@@ -245,16 +256,12 @@ s.addAttribute("ast", {
   pattern_is: (a, _1, _2, _3, b) => ({ type: "is", nodes: [a.ast, b.ast] }),
   pattern: (a) => a.ast,
 
-  p_or_or: (a, _1, _2, _3, b) => ({ type: "or", nodes: [a.ast, b.ast] }),
-  p_or: (a) => a.ast,
+  t_or_or: (a, _1, _2, _3, b) => ({ type: "or", nodes: [a.ast, b.ast] }),
+  t_or: (a) => a.ast,
 
-  p_and_and: (a, _1, _2, _3, b) => ({ type: "and", nodes: [a.ast, b.ast] }),
-  p_and: (a) => a.ast,
+  t_and_and: (a, _1, _2, _3, b) => ({ type: "and", nodes: [a.ast, b.ast] }),
+  t_and: (a) => a.ast,
 
-  test_block: (_1, _2, a, _3, _4) => ({
-    type: "block",
-    value: a.ast,
-  }),
   test_type: (a) => ({
     type: "type",
     value: a.sourceString,
@@ -265,6 +272,22 @@ s.addAttribute("ast", {
     value: b.ast,
   }),
   test_brackets: (_1, _2, a, _3, _4) => a.ast,
+  test_block: (a) => a.ast,
+
+  t_block_both: (_1, _2, a, _3, _4, _5, b, _6, _7) => ({
+    type: "block",
+    nodes: [...a.ast, b.ast[0]].filter((x) => x),
+  }),
+  t_block_values: (_1, _2, a, _3, _4) => ({ type: "block", nodes: a.ast }),
+  t_block_items: (_1, _2, a, _3, _4) => ({ type: "block", nodes: [a.ast] }),
+
+  t_values: (a, _1, _2) => a.ast,
+
+  t_assign: (a, _1, _2, _3, b) => ({
+    type: "assign",
+    key: a.ast,
+    nodes: [b.ast],
+  }),
 
   content: (_1, a, _2) => ({ type: "block", nodes: a.ast }),
 
