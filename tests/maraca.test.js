@@ -29,4 +29,9 @@ test.only("sync", () => {
     values: { x: 20 },
     items: [],
   });
+  expect(run({}, `[x: if no then 10]`)).toEqual({
+    __type: "block",
+    values: {},
+    items: [],
+  });
 });

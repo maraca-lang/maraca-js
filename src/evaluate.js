@@ -1,15 +1,15 @@
-import { resolveDeep, resolveToMulti, resolveToSingle } from "./resolve.js";
+import { resolveDeep, resolveToFragment, resolveToSingle } from "./resolve.js";
 import { derived, effect } from "./streams.js";
 import { getParameters } from "./types.js";
 
 export const unary = {
   "!": (a) => !a,
   "-": (a) => -a,
-  "...": (a) => ({ __type: "multi", value: a.items }),
+  "...": (a) => ({ __type: "fragment", value: a.items }),
 };
 export const binary = {
-  "|": (a, b) => (a || b ? true : false),
-  "&": (a, b) => (a && b ? true : false),
+  "|": (a, b) => a === true || b === true,
+  "&": (a, b) => a === true && b === true,
   "=": (a, b) => a === b,
   "!=": (a, b) => a !== b,
   concat: (...args) => args.filter((x) => x).join(""),
@@ -25,6 +25,17 @@ export const binary = {
   "^": (a, b) => a ** b,
 };
 
+const toBlock = (value) => {
+  if (!value || typeof value !== "object") throw new Error();
+  if (Array.isArray(value)) {
+    return { __type: "block", values: {}, items: value };
+  }
+  if (value.__type !== "block") {
+    return { __type: "block", values: value, items: [] };
+  }
+  return value;
+};
+
 const evaluateBlock = (nodes, context) => {
   const newContext = { ...context };
   const values = {};
@@ -33,6 +44,9 @@ const evaluateBlock = (nodes, context) => {
     const $value = evaluate(n.nodes[0], newContext);
     const res = getParameters(pattern, $value, true);
     if (!res) throw new Error();
+    for (const k in res) {
+      if (resolveToFragment(res[k]) === null) delete res[k];
+    }
     Object.assign(newContext, res);
     Object.assign(values, res);
   }
@@ -79,7 +93,7 @@ const evaluate = (node, context) => {
   if (node.type === "for") {
     const $block = evaluate(node.nodes[0], context);
     return derived(() => {
-      const result = resolveToSingle($block).items.map(($v, i) => {
+      const result = toBlock(resolveToSingle($block)).items.map(($v, i) => {
         const matches = node.patterns.map((p, j) =>
           getParameters(p, j === 0 ? $v : i + 1)
         );
@@ -89,7 +103,7 @@ const evaluate = (node, context) => {
           matches.reduce((res, m) => ({ ...res, ...m }), context)
         );
       });
-      return { __type: "multi", value: result };
+      return { __type: "fragment", value: result };
     });
   }
 
@@ -108,19 +122,19 @@ const evaluate = (node, context) => {
         __type: "block",
         values,
         items: items.reduce((res, $v) => {
-          const v = resolveToMulti($v);
+          const v = resolveToFragment($v);
           if (v === null) return res;
-          if (v.__type === "multi") return [...res, ...v.value];
+          if (v.__type === "fragment") return [...res, ...v.value];
           return [...res, v];
         }, []),
       };
     });
   }
 
-  if (node.type === "multi") {
+  if (node.type === "fragment") {
     return derived(() => {
       const { items } = evaluateBlock(node.nodes, context);
-      return { __type: "multi", value: items };
+      return { __type: "fragment", value: items };
     });
   }
 
@@ -136,27 +150,34 @@ const evaluate = (node, context) => {
   if (node.type === "if") {
     return derived(() => {
       const [$test, $yes, $no = null] = $values;
-      return resolveToSingle($test) ? $yes : $no;
+      return resolveToSingle($test) === true ? $yes : $no;
     });
   }
 
   if (node.type === "get") {
-    const [block, arg] = $values.map((x) => resolveToSingle(x));
-    if (arg in block.values) {
-      return block.values[arg];
-    }
-    if (Number.isInteger(arg) && arg - 1 in block.items) {
-      return block.items[arg - 1];
-    }
-    throw new Error();
+    return derived(() => {
+      const [base, arg] = $values.map((x) => resolveToSingle(x));
+      const block = toBlock(base);
+      if (arg in block.values) {
+        return block.values[arg];
+      }
+      if (Number.isInteger(arg) && arg - 1 in block.items) {
+        return block.items[arg - 1];
+      }
+      throw new Error();
+    });
   }
 
   if (node.type === "call") {
     const [$func, ...$args] = $values;
     return derived(() => {
-      const multi = resolveToMulti($func);
+      const fragment = resolveToFragment($func);
       const funcs =
-        multi === null ? [] : multi.__type === "multi" ? multi.value : [multi];
+        fragment === null
+          ? []
+          : fragment.__type === "fragment"
+          ? fragment.value
+          : [fragment];
       for (const f of funcs) {
         if (typeof f === "function") {
           return f.reactiveFunc

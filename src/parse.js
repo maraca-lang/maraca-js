@@ -47,7 +47,7 @@ const grammar = String.raw`Maraca {
     | atom
 
   atom
-    = if | for | function | block | multi | content | string | number | boolean | label | brackets
+    = if | for | function | block | fragment | content | string | number | boolean | label | brackets
 
   if
     = "if" space* value space* "then" space* value (space* "else" space* value)?
@@ -63,7 +63,7 @@ const grammar = String.raw`Maraca {
     | "[" space* values space* "]" -- values
     | "[" space* items space* "]" -- items
 
-  multi
+  fragment
     = "{" space* values (space* "~" space* items)? space* "}" -- both
     | "{" space* items space* "}" -- items
 
@@ -109,7 +109,7 @@ const grammar = String.raw`Maraca {
     = label space* ":" space* pattern
 
   content
-    = "\"" (multi | c_chunk)* "\""
+    = "\"" (fragment | c_chunk)* "\""
 
   c_chunk
     = (c_char | escape)+
@@ -118,7 +118,7 @@ const grammar = String.raw`Maraca {
     = ~("\"" | "\\" | "{") any
 
   string
-    = "'" (multi | s_chunk)* "'"
+    = "'" (fragment | s_chunk)* "'"
 
   s_chunk
     = (s_char | escape)+
@@ -231,11 +231,11 @@ s.addAttribute("ast", {
   block_values: (_1, _2, a, _3, _4) => ({ type: "block", nodes: a.ast }),
   block_items: (_1, _2, a, _3, _4) => ({ type: "block", nodes: a.ast }),
 
-  multi_both: (_1, _2, a, _3, _4, _5, b, _6, _7) => ({
-    type: "multi",
+  fragment_both: (_1, _2, a, _3, _4, _5, b, _6, _7) => ({
+    type: "fragment",
     nodes: [...a.ast, ...(b.ast[0] || [])],
   }),
-  multi_items: (_1, _2, a, _3, _4) => ({ type: "multi", nodes: a.ast }),
+  fragment_items: (_1, _2, a, _3, _4) => ({ type: "fragment", nodes: a.ast }),
 
   values: (a, _1, _2) => a.ast,
 

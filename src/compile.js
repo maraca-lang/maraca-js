@@ -7,7 +7,7 @@ const getParameters = (pattern) => {
 };
 
 const captureNode = (node, context, capture) => {
-  if (node.type === "block" || node.type === "multi") {
+  if (node.type === "block" || node.type === "fragment") {
     const keys = node.nodes
       .filter((n) => n.type === "assign")
       .map((n) => getParameters(n.pattern));
@@ -15,7 +15,7 @@ const captureNode = (node, context, capture) => {
       (res, k) => ({ ...res, [k]: true }),
       context
     );
-    if (node.type === "multi") {
+    if (node.type === "fragment") {
       for (const n of node.nodes) captureNode(n, newContext, capture);
     } else if (!capture) {
       const newCapture = (name) => {
@@ -52,7 +52,7 @@ const captureNode = (node, context, capture) => {
 };
 
 const orderValues = (node, processVar) => {
-  if (node.type === "block" || node.type === "multi") {
+  if (node.type === "block" || node.type === "fragment") {
     const ordered = [];
     const processed = {};
     const values = node.nodes
