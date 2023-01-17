@@ -38,6 +38,7 @@ const grammar = String.raw`Maraca {
 
   unary
     = ("-" | "!" | "...") space* apply -- unary
+    | apply space* "?" -- exists
     | apply
 
   apply
@@ -188,6 +189,11 @@ s.addAttribute("ast", {
     type: "operation",
     operation: a.sourceString,
     nodes: [b.ast],
+  }),
+  unary_exists: (a, _1, b) => ({
+    type: "operation",
+    operation: b.sourceString,
+    nodes: [a.ast],
   }),
   unary: (a) => a.ast,
 

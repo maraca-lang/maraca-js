@@ -8,8 +8,6 @@ export const unary = {
   "...": (a) => ({ __type: "fragment", value: a.items }),
 };
 export const binary = {
-  "|": (a, b) => a === true || b === true,
-  "&": (a, b) => a === true && b === true,
   "=": (a, b) => a === b,
   "!=": (a, b) => a !== b,
   concat: (...args) => args.filter((x) => x).join(""),
@@ -44,10 +42,10 @@ const evaluateBlock = (nodes, context) => {
     const $value = evaluate(n.nodes[0], newContext);
     const res = getParameters(pattern, $value, true);
     if (!res) throw new Error();
+    Object.assign(newContext, res);
     for (const k in res) {
       if (resolveToFragment(res[k]) === null) delete res[k];
     }
-    Object.assign(newContext, res);
     Object.assign(values, res);
   }
   for (const n of nodes.filter((n) => n.type === "push")) {
@@ -142,6 +140,22 @@ const evaluate = (node, context) => {
 
   if (node.type === "operation") {
     return derived(() => {
+      if ($values.length === 1 && node.operation === "?") {
+        const arg = resolveToFragment($values[0]);
+        return arg !== null;
+      }
+      if (node.operation === "|") {
+        return (
+          resolveToSingle($values[0]) === true ||
+          resolveToSingle($values[1]) === true
+        );
+      }
+      if (node.operation === "&") {
+        return (
+          resolveToSingle($values[0]) === true &&
+          resolveToSingle($values[1]) === true
+        );
+      }
       const args = $values.map((x) => resolveToSingle(x));
       return (args.length === 1 ? unary : binary)[node.operation](...args);
     });
@@ -164,7 +178,7 @@ const evaluate = (node, context) => {
       if (Number.isInteger(arg) && arg - 1 in block.items) {
         return block.items[arg - 1];
       }
-      throw new Error();
+      return null;
     });
   }
 
@@ -192,7 +206,7 @@ const evaluate = (node, context) => {
           );
         }
       }
-      throw new Error();
+      return null;
     });
   }
 };

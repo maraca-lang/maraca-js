@@ -77,6 +77,9 @@ const orderValues = (node, processVar) => {
     for (const { parameters } of values) {
       for (const name of parameters) newProcessVar(name);
     }
+    for (const n of node.nodes.filter((n) => n.type !== "assign")) {
+      orderValues(n, newProcessVar);
+    }
     ordered.push(
       ...node.nodes
         .filter((n) => n.type === "assign" && n.pattern.type === "is")
@@ -89,6 +92,14 @@ const orderValues = (node, processVar) => {
     );
     ordered.push(...node.nodes.filter((n) => n.type !== "assign"));
     node.nodes = ordered;
+  } else if (node.type === "for" || node.type === "function") {
+    const parameters = [
+      ...new Set(node.patterns.flatMap((p) => getParameters(p))),
+    ];
+    const newProcessVar = (name) => {
+      if (!parameters.includes(name)) processVar(name);
+    };
+    for (const n of node.nodes) orderValues(n, newProcessVar);
   } else if (node.nodes) {
     for (const n of node.nodes) orderValues(n, processVar);
   } else if (node.type === "label") {

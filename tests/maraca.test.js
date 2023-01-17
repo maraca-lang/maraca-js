@@ -34,4 +34,5 @@ test.only("sync", () => {
     values: {},
     items: [],
   });
+  expect(run({}, `[].x?`)).toEqual(false);
 });
