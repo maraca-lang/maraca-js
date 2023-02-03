@@ -43,9 +43,6 @@ const evaluateBlock = (nodes, context) => {
     const res = getParameters(pattern, $value, true);
     if (!res) throw new Error();
     Object.assign(newContext, res);
-    for (const k in res) {
-      if (resolveToFragment(res[k]) === null) delete res[k];
-    }
     Object.assign(values, res);
   }
   for (const n of nodes.filter((n) => n.type === "push")) {
@@ -116,16 +113,20 @@ const evaluate = (node, context) => {
   if (node.type === "block") {
     return derived(() => {
       const { values, items } = evaluateBlock(node.nodes, context);
-      return {
+      return derived(() => ({
         __type: "block",
-        values,
+        values: Object.fromEntries(
+          Object.entries(values).filter(
+            ([_, $v]) => resolveToFragment($v) !== null
+          )
+        ),
         items: items.reduce((res, $v) => {
           const v = resolveToFragment($v);
           if (v === null) return res;
           if (v.__type === "fragment") return [...res, ...v.value];
           return [...res, v];
         }, []),
-      };
+      }));
     });
   }
 

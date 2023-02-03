@@ -37,7 +37,7 @@ const grammar = String.raw`Maraca {
     | unary
 
   unary
-    = ("-" | "!" | "...") space* apply -- unary
+    = ("-" | "!" | "...") space* unary -- unary
     | apply space* "?" -- exists
     | apply
 
