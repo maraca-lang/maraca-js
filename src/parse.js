@@ -38,7 +38,6 @@ const grammar = String.raw`Maraca {
 
   unary
     = ("-" | "!" | "...") space* unary -- unary
-    | apply space* "?" -- exists
     | apply
 
   apply
@@ -72,7 +71,7 @@ const grammar = String.raw`Maraca {
     = listOf<(assign | push), separator> space* ","?
 
   assign
-    = pattern space* ":" space* value
+    = (pattern | string) space* ":" space* value
 
   push
     = ("when" space* value space*)? "push" space* value space* "->" space* label
@@ -190,11 +189,6 @@ s.addAttribute("ast", {
     operation: a.sourceString,
     nodes: [b.ast],
   }),
-  unary_exists: (a, _1, b) => ({
-    type: "operation",
-    operation: b.sourceString,
-    nodes: [a.ast],
-  }),
   unary: (a) => a.ast,
 
   apply_key: (a, _1, b) => ({
@@ -247,7 +241,8 @@ s.addAttribute("ast", {
 
   assign: (a, _1, _2, _3, b) => ({
     type: "assign",
-    pattern: a.ast,
+    pattern:
+      a.ast.type === "value" ? { type: "label", value: a.ast.value } : a.ast,
     nodes: [b.ast],
   }),
 

@@ -17,7 +17,7 @@ export const resolveToFragment = (x) => {
 
 export const resolveToSingle = (x) => {
   const fragment = resolveToFragment(x);
-  if (fragment === null) throw new Error();
+  if (fragment === null) return null;
   if (fragment?.__type === "fragment") return fragment.value[0];
   return fragment;
 };

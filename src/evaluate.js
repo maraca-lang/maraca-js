@@ -3,14 +3,12 @@ import { derived, effect } from "./streams.js";
 import { getParameters } from "./types.js";
 
 export const unary = {
-  "!": (a) => !a,
   "-": (a) => -a,
   "...": (a) => ({ __type: "fragment", value: a.items }),
 };
 export const binary = {
   "=": (a, b) => a === b,
   "!=": (a, b) => a !== b,
-  concat: (...args) => args.filter((x) => x).join(""),
   "<=": (a, b) => a <= b,
   ">=": (a, b) => a >= b,
   "<": (a, b) => a < b,
@@ -22,6 +20,8 @@ export const binary = {
   "%": (a, b) => ((((a - 1) % b) + b) % b) + 1,
   "^": (a, b) => a ** b,
 };
+
+const isTruthy = (x) => !(x === false || x === null);
 
 const toBlock = (value) => {
   if (!value || typeof value !== "object") throw new Error();
@@ -88,7 +88,9 @@ const evaluate = (node, context) => {
   if (node.type === "for") {
     const $block = evaluate(node.nodes[0], context);
     return derived(() => {
-      const result = toBlock(resolveToSingle($block)).items.map(($v, i) => {
+      const block = resolveToSingle($block);
+      if (block === null) return null;
+      const result = toBlock(block).items.map(($v, i) => {
         const matches = node.patterns.map((p, j) =>
           getParameters(p, j === 0 ? $v : i + 1)
         );
@@ -141,23 +143,27 @@ const evaluate = (node, context) => {
 
   if (node.type === "operation") {
     return derived(() => {
-      if ($values.length === 1 && node.operation === "?") {
-        const arg = resolveToFragment($values[0]);
-        return arg !== null;
-      }
-      if (node.operation === "|") {
-        return (
-          resolveToSingle($values[0]) === true ||
-          resolveToSingle($values[1]) === true
-        );
-      }
-      if (node.operation === "&") {
-        return (
-          resolveToSingle($values[0]) === true &&
-          resolveToSingle($values[1]) === true
-        );
+      if (node.operation === "concat") {
+        return $values
+          .map((x) => resolveToFragment(x))
+          .reduce((res, x) => {
+            if (x === null) return res;
+            if (x.__type === "fragment") return [...res, ...x.value];
+            return [...res, x];
+          }, [])
+          .join("");
       }
       const args = $values.map((x) => resolveToSingle(x));
+      if (node.operation === "!") {
+        return !isTruthy(args[0]);
+      }
+      if (node.operation === "|") {
+        return isTruthy(args[0]) ? args[0] : args[1];
+      }
+      if (node.operation === "&") {
+        return !isTruthy(args[0]) ? args[0] : args[1];
+      }
+      if (args.some((x) => x === null)) return null;
       return (args.length === 1 ? unary : binary)[node.operation](...args);
     });
   }
@@ -165,13 +171,14 @@ const evaluate = (node, context) => {
   if (node.type === "if") {
     return derived(() => {
       const [$test, $yes, $no = null] = $values;
-      return resolveToSingle($test) === true ? $yes : $no;
+      return isTruthy(resolveToSingle($test)) ? $yes : $no;
     });
   }
 
   if (node.type === "get") {
     return derived(() => {
       const [base, arg] = $values.map((x) => resolveToSingle(x));
+      if (base === null) return null;
       const block = toBlock(base);
       if (arg in block.values) {
         return block.values[arg];
@@ -197,7 +204,7 @@ const evaluate = (node, context) => {
         if (typeof f === "function") {
           return f.reactiveFunc
             ? f(...$args)
-            : f(...$args.map((x) => resolveToSingle(x)));
+            : f(...$args.map((x) => resolveToFragment(x)));
         }
         const matches = f.patterns.map((p, i) => getParameters(p, $args[i]));
         if (matches.every((m) => m)) {
