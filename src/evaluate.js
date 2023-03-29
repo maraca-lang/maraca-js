@@ -1,6 +1,7 @@
 import {
   derived,
   resolveDeep,
+  resolveItems,
   resolveToFragment,
   resolveToSingle,
 } from "./signals.js";
@@ -43,12 +44,14 @@ const evaluateBlock = (nodes, context) => {
   const values = {};
   for (const n of nodes.filter((n) => n.type === "assign")) {
     const pattern = n.pattern;
-    const $value = evaluate(n.nodes[0], newContext);
-    const res = getParameters(pattern, $value, true);
-    if (!res) throw new Error();
+    const $value = n.nodes[0] && evaluate(n.nodes[0], newContext);
+    const res = getParameters(pattern, $value);
     Object.assign(newContext, res);
     Object.assign(values, res);
   }
+  const items = nodes
+    .filter((n) => n.type !== "assign" && n.type !== "push")
+    .map((n) => evaluate(n, newContext));
   const pushes = nodes
     .filter((n) => n.type === "push")
     .map((n) => {
@@ -59,7 +62,7 @@ const evaluateBlock = (nodes, context) => {
         return derived(() => {
           const value = resolveDeep($source);
           if (!skipFirst) {
-            target.value.set(value);
+            target.set(value);
           }
           skipFirst = false;
         });
@@ -69,16 +72,13 @@ const evaluateBlock = (nodes, context) => {
       return derived(() => {
         const nextTrigger = resolveToSingle(trigger);
         if (!skipFirst && nextTrigger && nextTrigger !== prevTrigger) {
-          target.value.set(resolveDeep($source));
+          target.set(resolveDeep($source));
         }
         prevTrigger = nextTrigger;
         skipFirst = false;
       });
     });
-  const items = nodes
-    .filter((n) => n.type !== "assign" && n.type !== "push")
-    .map((n) => evaluate(n, newContext));
-  return { values, items, pushes };
+  return { values, items, pushes: pushes.length > 0 && pushes };
 };
 
 const evaluate = (node, context) => {
@@ -99,7 +99,6 @@ const evaluate = (node, context) => {
         const matches = node.patterns.map((p, j) =>
           getParameters(p, j === 0 ? $v : i + 1)
         );
-        if (!matches.every((m) => m)) throw new Error();
         return evaluate(
           node.nodes[1],
           matches.reduce((res, m) => ({ ...res, ...m }), context)
@@ -118,33 +117,15 @@ const evaluate = (node, context) => {
   }
 
   if (node.type === "block") {
-    return derived(() => {
-      const { values, items, pushes } = evaluateBlock(node.nodes, context);
-      return derived(
-        () => ({
-          __type: "block",
-          values: Object.fromEntries(
-            Object.entries(values).filter(
-              ([_, $v]) => resolveToFragment($v) !== null
-            )
-          ),
-          items: items.reduce((res, $v) => {
-            const v = resolveToFragment($v);
-            if (v === null) return res;
-            if (v.__type === "fragment") return [...res, ...v.value];
-            return [...res, v];
-          }, []),
-        }),
-        pushes
-      );
-    });
+    const { values, items, pushes } = evaluateBlock(node.nodes, context);
+    if (!pushes) return { __type: "block", values, items };
+    return derived(() => ({ __type: "block", values, items }), pushes);
   }
 
   if (node.type === "fragment") {
-    return derived(() => {
-      const { items } = evaluateBlock(node.nodes, context);
-      return { __type: "fragment", value: items };
-    });
+    const { items, pushes } = evaluateBlock(node.nodes, context);
+    if (!pushes) return { __type: "fragment", value: items };
+    return derived(() => ({ __type: "fragment", value: items }), pushes);
   }
 
   const $values = node.nodes.map((n) => evaluate(n, context));
@@ -191,8 +172,8 @@ const evaluate = (node, context) => {
       if (arg in block.values) {
         return block.values[arg];
       }
-      if (Number.isInteger(arg) && arg - 1 in block.items) {
-        return block.items[arg - 1];
+      if (Number.isInteger(arg)) {
+        return resolveItems(block.items)[arg - 1] || null;
       }
       return null;
     });
@@ -215,12 +196,10 @@ const evaluate = (node, context) => {
             : f(...$args.map((x) => resolveToFragment(x)));
         }
         const matches = f.patterns.map((p, i) => getParameters(p, $args[i]));
-        if (matches.every((m) => m)) {
-          return evaluate(
-            f.body,
-            matches.reduce((res, m) => ({ ...res, ...m }), context)
-          );
-        }
+        return evaluate(
+          f.body,
+          matches.reduce((res, m) => ({ ...res, ...m }), context)
+        );
       }
       return null;
     });

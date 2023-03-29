@@ -16,7 +16,7 @@ export const derived = (func, deps = []) => {
   return {
     __type: "signal",
     get: () => {
-      for (const d of deps) d.value;
+      for (const d of deps) resolveDeep(d);
       return s.value;
     },
   };
@@ -32,15 +32,18 @@ export const effect = (run) =>
     };
   });
 
+export const resolveItems = (items) =>
+  items.reduce((res, $v) => {
+    const v = resolveToFragment($v);
+    if (v === null) return res;
+    if (v.__type === "fragment") return [...res, ...v.value];
+    return [...res, v];
+  }, []);
+
 export const resolveToFragment = (x) => {
   if (x?.__type === "signal") return resolveToFragment(x.get());
   if (x?.__type === "fragment") {
-    const flat = x.value.reduce((res, $y) => {
-      const y = resolveToFragment($y);
-      if (y === null) return res;
-      if (y.__type === "fragment") return [...res, ...y.value];
-      return [...res, y];
-    }, []);
+    const flat = resolveItems(x.value);
     if (flat.length === 0) return null;
     if (flat.length === 1) return flat[0];
     return { __type: "fragment", value: flat };
@@ -57,6 +60,17 @@ export const resolveToSingle = (x) => {
 
 export const resolveDeep = (x) => {
   const value = resolveToSingle(x);
+  if (value?.__type === "block") {
+    return {
+      __type: "block",
+      values: Object.fromEntries(
+        Object.entries(value.values)
+          .map(([k, y]) => [k, resolveDeep(y)])
+          .filter(([_, v]) => v !== null)
+      ),
+      items: resolveDeep(resolveItems(value.items)),
+    };
+  }
   if (Array.isArray(value)) return value.map((y) => resolveDeep(y));
   if (value && typeof value === "object") {
     return Object.fromEntries(

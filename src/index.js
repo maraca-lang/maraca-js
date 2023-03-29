@@ -1,14 +1,20 @@
 import compile from "./compile.js";
 import evaluate from "./evaluate.js";
-import { resolveDeep, resolveToSingle } from "./signals.js";
+import { resolveDeep, resolveItems, resolveToSingle } from "./signals.js";
 
 export { atom, derived, effect } from "./signals.js";
 
 export const reactiveFunc = (func) =>
   Object.assign(func, { reactiveFunc: true });
 
-export const resolve = (value, deep = false) =>
-  deep ? resolveDeep(value) : resolveToSingle(value);
+export const resolve = (x, deep = false) => {
+  if (deep) return resolveDeep(x);
+  const value = resolveToSingle(x);
+  if (value?.__type === "block") {
+    return { ...value, items: resolveItems(value.items) };
+  }
+  return value;
+};
 
 const merge = (source) => {
   if (typeof source === "string") return source;

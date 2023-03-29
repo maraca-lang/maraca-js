@@ -68,7 +68,9 @@ const orderValues = (node, processVar) => {
         if (v && !v.processed) {
           v.processed = true;
           orderValues(v.node, newProcessVar);
-          ordered.push(v.node);
+          ordered.push(
+            v.node.pattern.type === "is" ? { ...v.node, nodes: [] } : v.node
+          );
         } else {
           processVar(name);
         }

@@ -1,4 +1,4 @@
-import { atom, resolveDeep } from "./signals.js";
+import { atom } from "./signals.js";
 
 const runTest = (test, value) => {
   if (!test) return false;
@@ -59,16 +59,13 @@ const nestedAtom = (x, test) => {
   });
 };
 
-export const getParameters = (pattern, $value, wrapAtom = false) => {
+export const getParameters = (pattern, $value) => {
   if (pattern.type === "label") {
     return { [pattern.value]: $value };
   }
   if (pattern.type === "is") {
     const [label, test] = pattern.nodes;
-    const value = resolveDeep($value);
-    if (!runTest(test, value)) return false;
-    if (!wrapAtom) return { [label.value]: $value };
-    return { [label.value]: nestedAtom(value, test) };
+    return { [label.value]: $value ? $value : nestedAtom(null, test) };
   }
-  return runTest(pattern, resolveDeep($value)) && {};
+  return {};
 };
