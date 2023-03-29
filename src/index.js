@@ -1,9 +1,8 @@
 import compile from "./compile.js";
 import evaluate from "./evaluate.js";
-import { resolveDeep, resolveToSingle } from "./resolve.js";
-import run from "./streams.js";
+import { resolveDeep, resolveToSingle } from "./signals.js";
 
-export { atom, derived, effect } from "./streams.js";
+export { atom, derived, effect } from "./signals.js";
 
 export const reactiveFunc = (func) =>
   Object.assign(func, { reactiveFunc: true });
@@ -18,11 +17,5 @@ const merge = (source) => {
     .join(", ")} ]`;
 };
 
-const standard = {};
-
-export default (library, source, update) => {
-  const lib = { ...standard, ...library };
-  const value = evaluate(compile(merge(source), lib), lib);
-  if (update) return run(() => update(value));
-  return run(() => resolveDeep(value), true);
-};
+export default (library, source) =>
+  evaluate(compile(merge(source), library), library);

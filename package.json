@@ -9,6 +9,7 @@
     "jest": "^29.5.0"
   },
   "dependencies": {
+    "@preact/signals-core": "^1.2.3",
     "ohm-js": "^17.0.4"
   }
 }

@@ -1,12 +1,16 @@
-import { resolveDeep, resolveToFragment, resolveToSingle } from "./resolve.js";
-import { derived, effect } from "./streams.js";
+import {
+  derived,
+  resolveDeep,
+  resolveToFragment,
+  resolveToSingle,
+} from "./signals.js";
 import { getParameters } from "./types.js";
 
-export const unary = {
+const unary = {
   "-": (a) => -a,
   "...": (a) => ({ __type: "fragment", value: a.items }),
 };
-export const binary = {
+const binary = {
   "=": (a, b) => a === b,
   "!=": (a, b) => a !== b,
   "<=": (a, b) => a <= b,
@@ -45,14 +49,24 @@ const evaluateBlock = (nodes, context) => {
     Object.assign(newContext, res);
     Object.assign(values, res);
   }
-  for (const n of nodes.filter((n) => n.type === "push")) {
-    let skipFirst = !n.first;
-    const [$source, $trigger] = n.nodes.map((n) => evaluate(n, newContext));
-    const target = newContext[n.key.value];
-    if ($trigger) {
+  const pushes = nodes
+    .filter((n) => n.type === "push")
+    .map((n) => {
+      let skipFirst = !n.first;
+      const [$source, $trigger] = n.nodes.map((n) => evaluate(n, newContext));
+      const target = newContext[n.key.value];
+      if (!$trigger) {
+        return derived(() => {
+          const value = resolveDeep($source);
+          if (!skipFirst) {
+            target.value.set(value);
+          }
+          skipFirst = false;
+        });
+      }
       const trigger = derived(() => resolveDeep($trigger) && {});
       let prevTrigger = {};
-      effect(() => {
+      return derived(() => {
         const nextTrigger = resolveToSingle(trigger);
         if (!skipFirst && nextTrigger && nextTrigger !== prevTrigger) {
           target.value.set(resolveDeep($source));
@@ -60,20 +74,11 @@ const evaluateBlock = (nodes, context) => {
         prevTrigger = nextTrigger;
         skipFirst = false;
       });
-    } else {
-      effect(() => {
-        const value = resolveDeep($source);
-        if (!skipFirst) {
-          target.value.set(value);
-        }
-        skipFirst = false;
-      });
-    }
-  }
+    });
   const items = nodes
     .filter((n) => n.type !== "assign" && n.type !== "push")
     .map((n) => evaluate(n, newContext));
-  return { values, items };
+  return { values, items, pushes };
 };
 
 const evaluate = (node, context) => {
@@ -114,21 +119,24 @@ const evaluate = (node, context) => {
 
   if (node.type === "block") {
     return derived(() => {
-      const { values, items } = evaluateBlock(node.nodes, context);
-      return derived(() => ({
-        __type: "block",
-        values: Object.fromEntries(
-          Object.entries(values).filter(
-            ([_, $v]) => resolveToFragment($v) !== null
-          )
-        ),
-        items: items.reduce((res, $v) => {
-          const v = resolveToFragment($v);
-          if (v === null) return res;
-          if (v.__type === "fragment") return [...res, ...v.value];
-          return [...res, v];
-        }, []),
-      }));
+      const { values, items, pushes } = evaluateBlock(node.nodes, context);
+      return derived(
+        () => ({
+          __type: "block",
+          values: Object.fromEntries(
+            Object.entries(values).filter(
+              ([_, $v]) => resolveToFragment($v) !== null
+            )
+          ),
+          items: items.reduce((res, $v) => {
+            const v = resolveToFragment($v);
+            if (v === null) return res;
+            if (v.__type === "fragment") return [...res, ...v.value];
+            return [...res, v];
+          }, []),
+        }),
+        pushes
+      );
     });
   }
 

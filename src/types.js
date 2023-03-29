@@ -1,5 +1,4 @@
-import { resolveDeep } from "./resolve.js";
-import { atom } from "./streams.js";
+import { atom, resolveDeep } from "./signals.js";
 
 const runTest = (test, value) => {
   if (!test) return false;
@@ -36,34 +35,28 @@ const runTest = (test, value) => {
 
 const nestedAtom = (x, test) => {
   if (x?.__type !== "block") {
-    return {
-      __type: "atom",
-      value: atom(x, (v) => {
-        if (!runTest(test, v)) throw new Error();
-        return v;
-      }),
-    };
+    return atom(x, (v) => {
+      if (!runTest(test, v)) throw new Error();
+      return v;
+    });
   }
   const valueTests = test.nodes
     .filter((n) => n.type === "assign")
     .reduce((res, n) => ({ ...res, [n.key.value]: n.nodes[0] }), {});
   const itemsTest = test.nodes.find((n) => n.type !== "assign");
-  return {
-    __type: "atom",
-    value: atom(x, (v) => {
-      if (!runTest(test, v)) throw new Error();
-      return {
-        __type: "block",
-        values: Object.fromEntries(
-          Object.entries(v.values).map(([k, v]) => [
-            k,
-            nestedAtom(v, valueTests[k]),
-          ])
-        ),
-        items: v.items.map((v) => nestedAtom(v, itemsTest)),
-      };
-    }),
-  };
+  return atom(x, (v) => {
+    if (!runTest(test, v)) throw new Error();
+    return {
+      __type: "block",
+      values: Object.fromEntries(
+        Object.entries(v.values).map(([k, v]) => [
+          k,
+          nestedAtom(v, valueTests[k]),
+        ])
+      ),
+      items: v.items.map((v) => nestedAtom(v, itemsTest)),
+    };
+  });
 };
 
 export const getParameters = (pattern, $value, wrapAtom = false) => {
