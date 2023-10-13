@@ -15,7 +15,7 @@ test.only("sync", () => {
     values: { x: 1 },
     items: [],
   });
-  expect(runTest(`[x is number: 1]`)).toEqual({
+  expect(runTest(`[x:: 1]`)).toEqual({
     __type: "block",
     values: { x: 1 },
     items: [],
@@ -25,13 +25,13 @@ test.only("sync", () => {
     values: { x: 1, y: 2 },
     items: [],
   });
-  expect(runTest(`{ (x is number)=> x + 1 }(1)`)).toEqual(2);
-  expect(runTest(`[x: if no then 10 else {20, 30}]`)).toEqual({
+  expect(runTest(`((x)=> x + 1)(1)`)).toEqual(2);
+  expect(runTest(`[x: if no 10 else {20, 30}]`)).toEqual({
     __type: "block",
     values: { x: 20 },
     items: [],
   });
-  expect(runTest(`[x: if no then 10]`)).toEqual({
+  expect(runTest(`[x: if no 10]`)).toEqual({
     __type: "block",
     values: {},
     items: [],

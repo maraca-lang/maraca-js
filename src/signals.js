@@ -1,12 +1,12 @@
 import { computed, effect as baseEffect, signal } from "@preact/signals-core";
 
-export const atom = (initial, map) => {
+export const atom = (initial) => {
   const s = signal(initial);
   return {
     __type: "signal",
     get: () => s.value,
     set: (v) => {
-      s.value = map ? map(v) : v;
+      s.value = v;
     },
   };
 };
@@ -54,8 +54,13 @@ export const resolveToFragment = (x) => {
 export const resolveToSingle = (x) => {
   const fragment = resolveToFragment(x);
   if (fragment === null) return null;
-  if (fragment?.__type === "fragment") return fragment.value[0];
-  return fragment;
+  const result = fragment?.__type === "fragment" ? fragment.value[0] : fragment;
+  if (result?.__type !== "block") return result;
+  return {
+    __type: "block",
+    values: result.values,
+    items: resolveItems(result.items),
+  };
 };
 
 export const resolveDeep = (x) => {

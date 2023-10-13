@@ -1,11 +1,11 @@
 import {
+  atom,
   derived,
   resolveDeep,
   resolveItems,
   resolveToFragment,
   resolveToSingle,
 } from "./signals.js";
-import { getParameters } from "./types.js";
 
 const unary = {
   "-": (a) => -a,
@@ -43,11 +43,15 @@ const evaluateBlock = (nodes, context) => {
   const newContext = { ...context };
   const values = {};
   for (const n of nodes.filter((n) => n.type === "assign")) {
-    const pattern = n.pattern;
-    const $value = n.nodes[0] && evaluate(n.nodes[0], newContext);
-    const res = getParameters(pattern, $value);
-    Object.assign(newContext, res);
-    Object.assign(values, res);
+    if (n.variable) {
+      const v = atom(null);
+      newContext[n.label] = v;
+      values[n.label] = v;
+    } else {
+      const $value = evaluate(n.nodes[0], newContext);
+      newContext[n.label] = $value;
+      values[n.label] = $value;
+    }
   }
   const items = nodes
     .filter((n) => n.type !== "assign" && n.type !== "push")
@@ -57,7 +61,7 @@ const evaluateBlock = (nodes, context) => {
     .map((n) => {
       let skipFirst = !n.first;
       const [$source, $trigger] = n.nodes.map((n) => evaluate(n, newContext));
-      const target = newContext[n.key.value];
+      const target = newContext[n.key];
       if (!$trigger) {
         return derived(() => {
           const value = resolveDeep($source);
@@ -71,7 +75,7 @@ const evaluateBlock = (nodes, context) => {
       let prevTrigger = {};
       return derived(() => {
         const nextTrigger = resolveToSingle(trigger);
-        if (!skipFirst && nextTrigger && nextTrigger !== prevTrigger) {
+        if (!skipFirst && nextTrigger !== prevTrigger) {
           target.set(resolveDeep($source));
         }
         prevTrigger = nextTrigger;
@@ -95,15 +99,15 @@ const evaluate = (node, context) => {
     return derived(() => {
       const block = resolveToSingle($block);
       if (block === null) return null;
-      const result = toBlock(block).items.map(($v, i) => {
-        const matches = node.patterns.map((p, j) =>
-          getParameters(p, j === 0 ? $v : i + 1)
-        );
-        return evaluate(
+      const result = toBlock(block).items.map(($v, i) =>
+        evaluate(
           node.nodes[1],
-          matches.reduce((res, m) => ({ ...res, ...m }), context)
-        );
-      });
+          node.labels.reduce(
+            (res, l, j) => ({ ...res, [l]: j === 0 ? $v : i + 1 }),
+            context
+          )
+        )
+      );
       return { __type: "fragment", value: result };
     });
   }
@@ -111,7 +115,7 @@ const evaluate = (node, context) => {
   if (node.type === "function") {
     return {
       __type: "function",
-      patterns: node.patterns,
+      labels: node.labels,
       body: node.nodes[0],
     };
   }
@@ -170,10 +174,10 @@ const evaluate = (node, context) => {
       if (base === null) return null;
       const block = toBlock(base);
       if (arg in block.values) {
-        return block.values[arg];
+        return block.values[arg] ?? null;
       }
       if (Number.isInteger(arg)) {
-        return resolveItems(block.items)[arg - 1] || null;
+        return resolveItems(block.items)[arg - 1] ?? null;
       }
       return null;
     });
@@ -182,26 +186,19 @@ const evaluate = (node, context) => {
   if (node.type === "call") {
     const [$func, ...$args] = $values;
     return derived(() => {
-      const fragment = resolveToFragment($func);
-      const funcs =
-        fragment === null
-          ? []
-          : fragment.__type === "fragment"
-          ? fragment.value
-          : [fragment];
-      for (const f of funcs) {
-        if (typeof f === "function") {
-          return f.reactiveFunc
-            ? f(...$args)
-            : f(...$args.map((x) => resolveToFragment(x)));
-        }
-        const matches = f.patterns.map((p, i) => getParameters(p, $args[i]));
-        return evaluate(
-          f.body,
-          matches.reduce((res, m) => ({ ...res, ...m }), context)
-        );
+      const func = resolveToSingle($func);
+      if (typeof func === "function") {
+        return func.reactiveFunc
+          ? func(...$args)
+          : func(...$args.map((x) => resolveDeep(x)));
       }
-      return null;
+      return evaluate(
+        func.body,
+        func.labels.reduce(
+          (res, l, i) => ({ ...res, [l]: i in $args ? $args[i] : null }),
+          context
+        )
+      );
     });
   }
 };

@@ -25,7 +25,7 @@ const grammar = String.raw`Maraca {
     | sum
 
   sum
-    = sum space* ("+" | "-") space* product -- sum
+    = sum space* ("+" | "-") space+ product -- sum
     | product
 
   product
@@ -50,13 +50,13 @@ const grammar = String.raw`Maraca {
     = if | for | function | block | fragment | content | string | number | boolean | label | brackets
 
   if
-    = "if" space* value space* "then" space* value (space* "else" space* value)?
+    = "if" space+ value space+ value (space+ "else" space+ value)?
 
   for
-    = "for" space* pattern (space* "," space* pattern)? space* "in" space* value space* value
+    = "for" space+ label (space* "," space* label)? space+ "in" space+ value space* value
 
   function
-    = "(" space* listOf<pattern, separator> space* ")" space* "=>" space* value
+    = "(" space* listOf<label, separator> space* ")" space* "=>" space* value
 
   block
     = "[" space* values (space* "~" space* items)? space* "]" -- both
@@ -71,42 +71,13 @@ const grammar = String.raw`Maraca {
     = listOf<(assign | push), separator> space* ","?
 
   assign
-    = (pattern | string) space* ":" space* value
+    = (label | string) space* ("::" | ":") space* value
 
   push
-    = ("when" space* value space*)? "push" space* value space* "->" space* label
+    = ("when" space+ value space+)? "push" space+ value space* "->" space* label
 
   items
     = listOf<value, separator> space* ","?
-
-  pattern
-    = label space* "is" space* t_or -- is
-    | (t_or | label)
-
-  t_or
-    = t_or space* "|" space* t_and -- or
-    | t_and
-
-  t_and
-    = t_and space* "&" space* test -- and
-    | test
-
-  test
-    = ("any" | "string" | "number" | "integer" | "maybe") -- type
-    | ("!=" | "=" | "<=" | ">=" | "<" | ">") value -- compare
-    | "(" space* pattern space* ")" -- brackets
-    | t_block -- block
-
-  t_block
-    = "[" space* t_values (space* "~" space* pattern)? space* "]" -- both
-    | "[" space* t_values space* "]" -- values
-    | "[" space* pattern space* "]" -- items
-
-  t_values
-    = listOf<t_assign, separator> space* ","?
-
-  t_assign
-    = label space* ":" space* pattern
 
   content
     = "\"" (fragment | c_chunk)* "\""
@@ -133,10 +104,10 @@ const grammar = String.raw`Maraca {
     = digit+ ("." digit+)?
 
   boolean
-    = ("yes" | "no")
+    = ("yes" | "no") ~alnum
 
   label
-    = ~("if" | "then" | "else" | "yes" | "no") alnum+
+    = alnum+
 
   brackets
     = "(" space* value space* ")"
@@ -207,20 +178,20 @@ s.addAttribute("ast", {
 
   atom: (a) => a.ast,
 
-  if: (_1, _2, a, _3, _4, _5, b, _6, _7, _8, c) => ({
+  if: (_1, _2, a, _3, b, _4, _5, _6, c) => ({
     type: "if",
     nodes: [a.ast, b.ast, c.ast[0]].filter((x) => x),
   }),
 
   for: (_1, _2, a, _3, _4, _5, b, _6, _7, _8, c, _9, d) => ({
     type: "for",
-    patterns: [a.ast, b.ast[0]].filter((x) => x),
+    labels: [a.ast, b.ast[0]].filter((x) => x).map((x) => x.value),
     nodes: [c.ast, d.ast],
   }),
 
   function: (_1, _2, a, _3, _4, _5, _6, _7, b) => ({
     type: "function",
-    patterns: a.ast,
+    labels: a.ast.map((x) => x.value),
     nodes: [b.ast],
   }),
 
@@ -239,11 +210,11 @@ s.addAttribute("ast", {
 
   values: (a, _1, _2) => a.ast,
 
-  assign: (a, _1, _2, _3, b) => ({
+  assign: (a, _1, b, _3, c) => ({
     type: "assign",
-    pattern:
-      a.ast.type === "value" ? { type: "label", value: a.ast.value } : a.ast,
-    nodes: [b.ast],
+    label: a.ast.value,
+    variable: b.sourceString === "::",
+    nodes: [c.ast],
   }),
 
   push: (_1, _2, a, _3, _4, _5, b, _6, _7, _8, c) => ({
@@ -254,43 +225,7 @@ s.addAttribute("ast", {
 
   items: (a, _1, _2) => a.ast,
 
-  pattern_is: (a, _1, _2, _3, b) => ({ type: "is", nodes: [a.ast, b.ast] }),
-  pattern: (a) => a.ast,
-
-  t_or_or: (a, _1, _2, _3, b) => ({ type: "or", nodes: [a.ast, b.ast] }),
-  t_or: (a) => a.ast,
-
-  t_and_and: (a, _1, _2, _3, b) => ({ type: "and", nodes: [a.ast, b.ast] }),
-  t_and: (a) => a.ast,
-
-  test_type: (a) => ({
-    type: "type",
-    value: a.sourceString,
-  }),
-  test_compare: (a, b) => ({
-    type: "compare",
-    operation: a.sourceString,
-    value: b.ast,
-  }),
-  test_brackets: (_1, _2, a, _3, _4) => a.ast,
-  test_block: (a) => a.ast,
-
-  t_block_both: (_1, _2, a, _3, _4, _5, b, _6, _7) => ({
-    type: "block",
-    nodes: [...a.ast, b.ast[0]].filter((x) => x),
-  }),
-  t_block_values: (_1, _2, a, _3, _4) => ({ type: "block", nodes: a.ast }),
-  t_block_items: (_1, _2, a, _3, _4) => ({ type: "block", nodes: [a.ast] }),
-
-  t_values: (a, _1, _2) => a.ast,
-
-  t_assign: (a, _1, _2, _3, b) => ({
-    type: "assign",
-    key: a.ast,
-    nodes: [b.ast],
-  }),
-
-  content: (_1, a, _2) => ({ type: "block", nodes: a.ast }),
+  content: (_1, a, _2) => ({ type: "fragment", nodes: a.ast }),
 
   c_chunk: (a) => ({
     type: "value",
